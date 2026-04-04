@@ -28,6 +28,9 @@
 #define WT_DEFAULT_SHARD_SIZE 4096
 #define WT_STOP_FILE     ".wardtest_stop"
 #define WT_CLIENTS_FILE  ".wardtest_clients"
+#define WT_CONTROL_FILE  ".wardtest_control"
+#define WT_CONTROL_MAGIC 0x57544354 /* "WTCT" */
+#define WT_CONTROL_VERSION 1
 
 /* ------------------------------------------------------------------ */
 /* Codec types                                                         */
@@ -82,6 +85,8 @@ struct wt_stripe_meta {
 	uint64_t wsm_created_ns;
 	uint32_t wsm_state;
 	uint32_t wsm_verify_count;
+	uint32_t wsm_codec;        /* enum wt_codec */
+	uint32_t wsm_reserved;
 };
 
 /* ------------------------------------------------------------------ */
@@ -102,6 +107,32 @@ struct wt_config {
 	uint32_t cfg_seed;
 	int      cfg_report_interval; /* seconds */
 };
+
+/* ------------------------------------------------------------------ */
+/* Control file — shared encoding parameters across all clients        */
+/* ------------------------------------------------------------------ */
+
+struct wt_control {
+	uint32_t wc_magic;
+	uint32_t wc_version;
+	uint32_t wc_k;
+	uint32_t wc_m;
+	uint32_t wc_shard_size;
+	uint32_t wc_codec;         /* enum wt_codec */
+	uint32_t wc_reserved[2];
+};
+
+/*
+ * Load or create the control file.  On first call (no file exists),
+ * writes the current cfg parameters.  On subsequent calls, reads the
+ * file and validates that cfg matches.  Returns 0 on success,
+ * -EINVAL on mismatch, -errno on I/O error.
+ *
+ * If cfg doesn't match the control file but verify_only is set,
+ * the control file values are adopted silently (verifiers don't
+ * need matching create params).
+ */
+int wt_control_sync(const char *meta_dir, struct wt_config *cfg);
 
 /* ------------------------------------------------------------------ */
 /* Per-thread worker context                                           */
@@ -167,6 +198,35 @@ void wt_xor_encode(uint8_t **shards, int k, size_t shard_size);
  * Returns true if data is consistent, false if corrupted.
  */
 bool wt_xor_verify(const uint8_t **shards, int n, size_t shard_size);
+
+/* ------------------------------------------------------------------ */
+/* RS codec (rs.c) — GF(2^8) Reed-Solomon                             */
+/* ------------------------------------------------------------------ */
+
+/*
+ * RS-encode: compute m parity shards from k data shards.
+ * shards[0..k-1] = data (input), shards[k..k+m-1] = parity (output).
+ * All shards must be shard_size bytes.
+ */
+void wt_rs_encode(uint8_t **shards, int k, int m, size_t shard_size);
+
+/*
+ * RS-verify: check that parity shards are consistent with data shards.
+ * Returns true if data is consistent, false if corrupted.
+ */
+bool wt_rs_verify(uint8_t **shards, int k, int m, size_t shard_size);
+
+/* ------------------------------------------------------------------ */
+/* Codec dispatch (codec.c)                                            */
+/* ------------------------------------------------------------------ */
+
+/* Encode using the configured codec. */
+void wt_codec_encode(enum wt_codec codec, uint8_t **shards,
+		     int k, int m, size_t shard_size);
+
+/* Verify using the configured codec.  Returns true if consistent. */
+bool wt_codec_verify(enum wt_codec codec, uint8_t **shards,
+		     int k, int m, size_t shard_size);
 
 /* ------------------------------------------------------------------ */
 /* Chunk I/O (chunk.c)                                                 */

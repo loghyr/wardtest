@@ -9,6 +9,9 @@ wardtest_SOURCES = \
 	rng.c \
 	crc32.c \
 	xor.c \
+	rs.c \
+	codec.c \
+	control.c \
 	stop.c \
 	state.c \
 	chunk.c \

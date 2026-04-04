@@ -351,6 +351,12 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
+	/* Sync encoding parameters with control file */
+	if (wt_control_sync(cfg.cfg_meta_dir, &cfg) < 0) {
+		wt_stop_fini();
+		return 1;
+	}
+
 	/* Register with clients file */
 	clients_log(cfg.cfg_meta_dir, mid, "RUNNING", 0);
 

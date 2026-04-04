@@ -85,7 +85,7 @@ int wt_action_create(const struct wt_config *cfg, uint64_t machine_id,
 	}
 
 	/* EC encode */
-	wt_xor_encode(shards, k, shard_size);
+	wt_codec_encode(cfg->cfg_codec, shards, k, m, shard_size);
 
 	/* Write each shard atomically */
 	for (int i = 0; i < n; i++) {
@@ -123,6 +123,7 @@ int wt_action_create(const struct wt_config *cfg, uint64_t machine_id,
 		.wsm_created_ns = now_ns(),
 		.wsm_state = WT_STRIPE_ACTIVE,
 		.wsm_verify_count = 0,
+		.wsm_codec = (uint32_t)cfg->cfg_codec,
 	};
 
 	ret = wt_meta_write(cfg->cfg_meta_dir, &meta);
@@ -160,6 +161,7 @@ int wt_action_verify(const struct wt_config *cfg, uint64_t machine_id,
 	int m = (int)meta.wsm_m;
 	int n = k + m;
 	size_t shard_size = meta.wsm_shard_size;
+	enum wt_codec codec = (enum wt_codec)meta.wsm_codec;
 
 	/* Read all shards */
 	uint8_t **shards = calloc((size_t)n, sizeof(uint8_t *));
@@ -189,8 +191,8 @@ int wt_action_verify(const struct wt_config *cfg, uint64_t machine_id,
 		shards[i] = data;
 	}
 
-	/* EC verify — XOR all shards should produce zeros */
-	bool ec_ok = wt_xor_verify((const uint8_t **)shards, n, shard_size);
+	/* EC verify using the codec that created this stripe */
+	bool ec_ok = wt_codec_verify(codec, shards, k, m, shard_size);
 	if (!ec_ok) {
 		wt_stop_corruption(cfg->cfg_meta_dir, stripe_id, -1,
 				   0, 0, machine_id);
