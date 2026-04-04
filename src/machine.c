@@ -6,6 +6,7 @@
  * Uses a simple hash of hostname + pid.
  */
 
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -34,12 +35,19 @@ uint64_t wt_machine_id(void)
 	char buf[512];
 	char host[256];
 
-	if (gethostname(host, sizeof(host)) < 0)
-		strncpy(host, "unknown", sizeof(host));
+	if (gethostname(host, sizeof(host)) < 0) {
+		fprintf(stderr, "wardtest: gethostname: %s\n",
+			strerror(errno));
+		strncpy(host, "unknown", sizeof(host) - 1);
+	}
 	host[sizeof(host) - 1] = '\0';
 
 	pid_t pid = getpid();
 	int n = snprintf(buf, sizeof(buf), "%s:%d", host, (int)pid);
+	if (n < 0 || (size_t)n >= sizeof(buf)) {
+		fprintf(stderr, "wardtest: machine_id buffer truncated\n");
+		n = (int)strlen(buf);
+	}
 
 	return fnv1a_64(buf, (size_t)n);
 }
