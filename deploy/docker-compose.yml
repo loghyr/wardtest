@@ -1,168 +1,141 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# wardtest against reffs NFSv4.2 — 1 server + N clients
+# wardtest 10k: 1 reffs server + 4 clients over NFSv4.2
 #
-# Usage:
-#   docker compose -f deploy/docker-compose.yml up --build
+# Build and run:
+#   ./deploy/run-docker.sh          (builds both images, runs compose)
 #   docker compose -f deploy/docker-compose.yml down -v
 #
-# The server runs reffsd as a standalone NFSv4.2 server.
-# Each client mounts the server and runs wardtest against the mount.
-#
-# All wardtest directories (data, meta, history) are on the NFS mount
-# so all file I/O goes through the NFS protocol path.
+# Each client does 2500 iterations (10k total across 4 containers).
+# The control file on the NFS mount ensures all clients use the
+# same encoding parameters.  Client 1 creates the wardtest
+# directories; clients 2-4 wait briefly for them to appear.
+
+x-client-common: &client-common
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile.client
+  privileged: true
+  networks:
+    wardnet:
+  depends_on:
+    server:
+      condition: service_healthy
 
 services:
-  # -- reffs NFSv4.2 server --
   server:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.server
+    image: wt-server
     container_name: wt-server
     hostname: wt-server
     privileged: true
-    ports:
-      - "12049:2049"
     networks:
       wardnet:
         aliases:
           - wt-server
     volumes:
-      - server-data:/var/lib/reffs
+      - ${WARDTEST_DIR:-.}/deploy/server.toml:/etc/reffs/reffsd.toml:ro
     healthcheck:
-      test: ["CMD", "rpcinfo", "-t", "localhost", "nfs", "4"]
+      test: ["CMD", "sh", "-c", "ss -tln | grep -q :2049"]
       interval: 2s
       timeout: 5s
       retries: 30
+      start_period: 10s
 
-  # -- wardtest builder (compile once, share binary) --
-  builder:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.client
-    container_name: wt-builder
-    volumes:
-      - wardtest-bin:/opt/wardtest
-    command: >
-      sh -c "
-        cd /src &&
-        mkdir -p m4 && autoreconf -fi &&
-        mkdir -p /tmp/build && cd /tmp/build &&
-        /src/configure &&
-        make -j\$(nproc) &&
-        cp src/wardtest /opt/wardtest/wardtest &&
-        echo 'wardtest built successfully'
-      "
-    networks:
-      wardnet:
-
-  # -- wardtest client 1 (writer + verifier) --
   client1:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.client
+    <<: *client-common
     container_name: wt-client1
     hostname: wt-client1
-    privileged: true
-    depends_on:
-      server:
-        condition: service_healthy
-      builder:
-        condition: service_completed_successfully
-    volumes:
-      - wardtest-bin:/opt/wardtest:ro
-    networks:
-      wardnet:
-    command: >
-      sh -c "
-        mkdir -p /mnt/nfs &&
-        mount -o vers=4.2,sec=sys,hard,timeo=600 wt-server:/ /mnt/nfs &&
-        mkdir -p /mnt/nfs/wardtest/{data,meta,history} &&
-        /opt/wardtest/wardtest
-          --data /mnt/nfs/wardtest/data
-          --meta /mnt/nfs/wardtest/meta
-          --history /mnt/nfs/wardtest/history
-          --iterations 200
-          --clients 2
-          --report 5;
-        EXIT=\$$?;
-        umount /mnt/nfs 2>/dev/null;
-        exit \$$EXIT
-      "
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        mkdir -p /mnt/nfs
+        mount -o vers=4.2,sec=sys,hard,timeo=600 wt-server:/ /mnt/nfs
+        mkdir -p /mnt/nfs/wardtest/data /mnt/nfs/wardtest/meta /mnt/nfs/wardtest/history
+        wardtest \
+          --data /mnt/nfs/wardtest/data \
+          --meta /mnt/nfs/wardtest/meta \
+          --history /mnt/nfs/wardtest/history \
+          --iterations 2500 \
+          --clients 2 \
+          --report 10
+        EXIT=$$?
+        umount /mnt/nfs 2>/dev/null || true
+        exit $$EXIT
 
-  # -- wardtest client 2 (writer + verifier, different seed) --
   client2:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.client
+    <<: *client-common
     container_name: wt-client2
     hostname: wt-client2
-    privileged: true
-    depends_on:
-      server:
-        condition: service_healthy
-      builder:
-        condition: service_completed_successfully
-    volumes:
-      - wardtest-bin:/opt/wardtest:ro
-    networks:
-      wardnet:
-    command: >
-      sh -c "
-        mkdir -p /mnt/nfs &&
-        mount -o vers=4.2,sec=sys,hard,timeo=600 wt-server:/ /mnt/nfs &&
-        sleep 2 &&
-        /opt/wardtest/wardtest
-          --data /mnt/nfs/wardtest/data
-          --meta /mnt/nfs/wardtest/meta
-          --history /mnt/nfs/wardtest/history
-          --iterations 200
-          --clients 2
-          --seed 0xdeadbeef
-          --report 5;
-        EXIT=\$$?;
-        umount /mnt/nfs 2>/dev/null;
-        exit \$$EXIT
-      "
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        mkdir -p /mnt/nfs
+        mount -o vers=4.2,sec=sys,hard,timeo=600 wt-server:/ /mnt/nfs
+        while [ ! -d /mnt/nfs/wardtest/data ]; do sleep 1; done
+        wardtest \
+          --data /mnt/nfs/wardtest/data \
+          --meta /mnt/nfs/wardtest/meta \
+          --history /mnt/nfs/wardtest/history \
+          --iterations 2500 \
+          --clients 2 \
+          --seed 0xdeadbeef \
+          --report 10
+        EXIT=$$?
+        umount /mnt/nfs 2>/dev/null || true
+        exit $$EXIT
 
-  # -- wardtest client 3 (verify-only, cross-client verification) --
-  verifier:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.client
-    container_name: wt-verifier
-    hostname: wt-verifier
-    privileged: true
-    depends_on:
-      server:
-        condition: service_healthy
-      builder:
-        condition: service_completed_successfully
-    volumes:
-      - wardtest-bin:/opt/wardtest:ro
-    networks:
-      wardnet:
-    command: >
-      sh -c "
-        mkdir -p /mnt/nfs &&
-        mount -o vers=4.2,sec=sys,hard,timeo=600 wt-server:/ /mnt/nfs &&
-        sleep 5 &&
-        /opt/wardtest/wardtest
-          --data /mnt/nfs/wardtest/data
-          --meta /mnt/nfs/wardtest/meta
-          --history /mnt/nfs/wardtest/history
-          --iterations 100
-          --verify-only
-          --report 5;
-        EXIT=\$$?;
-        umount /mnt/nfs 2>/dev/null;
-        exit \$$EXIT
-      "
+  client3:
+    <<: *client-common
+    container_name: wt-client3
+    hostname: wt-client3
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        mkdir -p /mnt/nfs
+        mount -o vers=4.2,sec=sys,hard,timeo=600 wt-server:/ /mnt/nfs
+        while [ ! -d /mnt/nfs/wardtest/data ]; do sleep 1; done
+        wardtest \
+          --data /mnt/nfs/wardtest/data \
+          --meta /mnt/nfs/wardtest/meta \
+          --history /mnt/nfs/wardtest/history \
+          --iterations 2500 \
+          --clients 2 \
+          --seed 0xcafebabe \
+          --report 10
+        EXIT=$$?
+        umount /mnt/nfs 2>/dev/null || true
+        exit $$EXIT
+
+  client4:
+    <<: *client-common
+    container_name: wt-client4
+    hostname: wt-client4
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        mkdir -p /mnt/nfs
+        mount -o vers=4.2,sec=sys,hard,timeo=600 wt-server:/ /mnt/nfs
+        while [ ! -d /mnt/nfs/wardtest/data ]; do sleep 1; done
+        wardtest \
+          --data /mnt/nfs/wardtest/data \
+          --meta /mnt/nfs/wardtest/meta \
+          --history /mnt/nfs/wardtest/history \
+          --iterations 2500 \
+          --clients 2 \
+          --seed 0xfeedface \
+          --report 10
+        EXIT=$$?
+        umount /mnt/nfs 2>/dev/null || true
+        exit $$EXIT
 
 networks:
   wardnet:
     driver: bridge
-
-volumes:
-  server-data:
-  wardtest-bin:

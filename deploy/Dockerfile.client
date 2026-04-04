@@ -1,15 +1,24 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# wardtest client — builds wardtest and provides NFS mount capability.
+# wardtest client -- builds wardtest, provides NFS mount capability.
 #
 # Build context is the wardtest source tree.
 
 FROM fedora:43
 
 RUN dnf install -y \
-    autoconf automake gcc make \
+    autoconf automake gcc make pkg-config \
+    check-devel \
     nfs-utils rpcbind \
     && dnf clean all
 
 COPY . /src
 WORKDIR /src
+
+RUN mkdir -p m4 && autoreconf -fi && \
+    mkdir -p /tmp/build && cd /tmp/build && \
+    /src/configure --enable-optimize && \
+    make -j$(nproc) && \
+    cp src/wardtest /usr/local/bin/wardtest
+
+CMD ["wardtest"]

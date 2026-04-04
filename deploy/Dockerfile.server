@@ -3,7 +3,7 @@
 # reffs NFSv4.2 server for wardtest.
 #
 # Build context must be the reffs source tree:
-#   docker build -f wardtest/deploy/Dockerfile.server -t wt-server /path/to/reffs
+#   docker build -f Dockerfile.server -t wt-server ~/reffs
 
 FROM fedora:43
 
@@ -31,9 +31,4 @@ RUN mkdir -p /var/lib/reffs/data /var/lib/reffs/mds
 
 EXPOSE 2049
 
-CMD ["sh", "-c", "\
-    rpcbind && \
-    /build/src/reffsd \
-      --config /etc/reffs/reffsd.toml \
-      --foreground \
-    "]
+CMD ["sh", "-c", "rpcbind; exec /build/src/reffsd --config /etc/reffs/reffsd.toml"]
