@@ -10,6 +10,9 @@
 # The control file on the NFS mount ensures all clients use the
 # same encoding parameters.  Client 1 creates the wardtest
 # directories; clients 2-4 wait briefly for them to appear.
+#
+# For duration-based runs, override with:
+#   WT_DURATION=300 docker compose ... up
 
 x-client-common: &client-common
   build:
@@ -57,7 +60,8 @@ services:
           --data /mnt/nfs/wardtest/data \
           --meta /mnt/nfs/wardtest/meta \
           --history /mnt/nfs/wardtest/history \
-          --iterations 2500 \
+          ${WT_DURATION:+--duration $WT_DURATION} \
+          ${WT_DURATION:-"--iterations 2500"} \
           --clients 2 \
           --report 10
         EXIT=$$?
@@ -80,7 +84,8 @@ services:
           --data /mnt/nfs/wardtest/data \
           --meta /mnt/nfs/wardtest/meta \
           --history /mnt/nfs/wardtest/history \
-          --iterations 2500 \
+          ${WT_DURATION:+--duration $WT_DURATION} \
+          ${WT_DURATION:-"--iterations 2500"} \
           --clients 2 \
           --seed 0xdeadbeef \
           --report 10
@@ -104,7 +109,8 @@ services:
           --data /mnt/nfs/wardtest/data \
           --meta /mnt/nfs/wardtest/meta \
           --history /mnt/nfs/wardtest/history \
-          --iterations 2500 \
+          ${WT_DURATION:+--duration $WT_DURATION} \
+          ${WT_DURATION:-"--iterations 2500"} \
           --clients 2 \
           --seed 0xcafebabe \
           --report 10
@@ -128,7 +134,8 @@ services:
           --data /mnt/nfs/wardtest/data \
           --meta /mnt/nfs/wardtest/meta \
           --history /mnt/nfs/wardtest/history \
-          --iterations 2500 \
+          ${WT_DURATION:+--duration $WT_DURATION} \
+          ${WT_DURATION:-"--iterations 2500"} \
           --clients 2 \
           --seed 0xfeedface \
           --report 10
