@@ -34,6 +34,7 @@ static void usage(const char *prog)
 		"\n"
 		"Optional:\n"
 		"  --iterations N     Number of operations (0 = infinite)\n"
+	"  --duration N       Run for N seconds (overrides iterations)\n"
 		"  --clients N        Writer threads (default: 1)\n"
 		"  --shard-size N     Shard size in bytes (default: 4096)\n"
 		"  --k N              Data shards (default: 4)\n"
@@ -51,6 +52,7 @@ static struct option long_opts[] = {
 	{ "meta",       required_argument, 0, 'm' },
 	{ "history",    required_argument, 0, 'H' },
 	{ "iterations", required_argument, 0, 'n' },
+	{ "duration",   required_argument, 0, 'D' },
 	{ "clients",    required_argument, 0, 'c' },
 	{ "shard-size", required_argument, 0, 's' },
 	{ "k",          required_argument, 0, 'k' },
@@ -82,7 +84,7 @@ static int parse_args(int argc, char **argv, struct wt_config *cfg)
 	cfg->cfg_codec = WT_CODEC_XOR;
 	cfg->cfg_report_interval = 10;
 
-	while ((c = getopt_long(argc, argv, "d:m:H:n:c:s:k:M:C:VS:r:h",
+	while ((c = getopt_long(argc, argv, "d:m:H:n:D:c:s:k:M:C:VS:r:h",
 				long_opts, NULL)) != -1) {
 		switch (c) {
 		case 'd':
@@ -100,6 +102,9 @@ static int parse_args(int argc, char **argv, struct wt_config *cfg)
 		case 'n':
 			cfg->cfg_iterations = (uint64_t)strtoull(optarg,
 								 NULL, 0);
+			break;
+		case 'D':
+			cfg->cfg_duration = atoi(optarg);
 			break;
 		case 'c':
 			cfg->cfg_clients = atoi(optarg);
@@ -242,6 +247,8 @@ static void *worker_thread(void *arg)
 		if (cfg->cfg_iterations > 0 &&
 		    w->ww_iterations >= cfg->cfg_iterations)
 			break;
+		if (w->ww_deadline > 0 && time(NULL) >= w->ww_deadline)
+			break;
 
 		/* Advance seed deterministically */
 		op_seed = op_seed * 1103515245 + 12345;
@@ -336,9 +343,14 @@ int main(int argc, char **argv)
 	printf("  codec:      %s  k=%d m=%d  shard=%u bytes\n",
 	       cfg.cfg_codec == WT_CODEC_XOR ? "xor" : "rs",
 	       cfg.cfg_k, cfg.cfg_m, cfg.cfg_shard_size);
-	printf("  iterations: %lu  clients: %d  verify-only: %s\n",
-	       (unsigned long)cfg.cfg_iterations, nclients,
-	       cfg.cfg_verify_only ? "yes" : "no");
+	if (cfg.cfg_duration > 0)
+		printf("  duration:   %ds  clients: %d  verify-only: %s\n",
+		       cfg.cfg_duration, nclients,
+		       cfg.cfg_verify_only ? "yes" : "no");
+	else
+		printf("  iterations: %lu  clients: %d  verify-only: %s\n",
+		       (unsigned long)cfg.cfg_iterations, nclients,
+		       cfg.cfg_verify_only ? "yes" : "no");
 	printf("  seed:       0x%08x\n", cfg.cfg_seed);
 
 	/* Check for previous corruption stop */
@@ -388,10 +400,8 @@ int main(int argc, char **argv)
 		workers[i].ww_stripe_counter = (uint32_t)i * 100000;
 		workers[i].ww_iterations = 0;
 		workers[i].ww_ret = 0;
-
-		/* Override per-worker iteration limit */
-		struct wt_config *wcfg = (struct wt_config *)workers[i].ww_cfg;
-		(void)wcfg; /* iterations handled via per_worker_iter */
+		workers[i].ww_deadline = cfg.cfg_duration > 0 ?
+			time(NULL) + cfg.cfg_duration : 0;
 	}
 
 	/* If using per-worker iteration limits, set them on a copy */
@@ -422,8 +432,12 @@ int main(int argc, char **argv)
 
 	/* Main thread: periodic stats reporting */
 	time_t last_report = time(NULL);
+	time_t main_deadline = cfg.cfg_duration > 0 ?
+		time(NULL) + cfg.cfg_duration : 0;
 
 	while (!g_stop) {
+		if (main_deadline > 0 && time(NULL) >= main_deadline)
+			break;
 		struct timespec sleep_ts = { .tv_sec = 1, .tv_nsec = 0 };
 		nanosleep(&sleep_ts, NULL);
 
@@ -458,18 +472,20 @@ int main(int argc, char **argv)
 			last_report = now;
 		}
 
-		/* Check if all workers have finished (iteration limit) */
-		bool all_done = true;
-		for (int i = 0; i < nclients; i++) {
-			if (workers[i].ww_iterations <
-			    worker_cfg.cfg_iterations ||
-			    worker_cfg.cfg_iterations == 0) {
-				all_done = false;
-				break;
+		/* Check if all workers have finished */
+		if (worker_cfg.cfg_iterations > 0) {
+			bool all_done = true;
+			for (int i = 0; i < nclients; i++) {
+				if (workers[i].ww_iterations <
+				    worker_cfg.cfg_iterations) {
+					all_done = false;
+					break;
+				}
 			}
+			if (all_done)
+				break;
 		}
-		if (all_done && worker_cfg.cfg_iterations > 0)
-			break;
+		/* Duration mode: deadline checked in worker threads */
 	}
 
 	/* Join all workers */

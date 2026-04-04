@@ -98,6 +98,7 @@ struct wt_config {
 	char     cfg_meta_dir[WT_MAX_PATH];
 	char     cfg_hist_dir[WT_MAX_PATH];
 	uint64_t cfg_iterations;   /* 0 = infinite */
+	int      cfg_duration;     /* seconds, 0 = use iterations */
 	int      cfg_clients;      /* writer threads */
 	uint32_t cfg_shard_size;
 	int      cfg_k;
@@ -148,6 +149,7 @@ struct wt_worker {
 	uint64_t         ww_iterations;
 	uint64_t         ww_stats[5];     /* per-action counts */
 	int              ww_ret;          /* exit status */
+	time_t           ww_deadline;     /* 0 = no time limit */
 };
 
 /* ------------------------------------------------------------------ */
