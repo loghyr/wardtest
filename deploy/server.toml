@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+# reffs standalone NFSv4.2 server config for wardtest
+
+[server]
+role = "standalone"
+port = 2049
+
+[backend]
+type = "ram"
+
+[[export]]
+path = "/"
+flavors = ["sys"]

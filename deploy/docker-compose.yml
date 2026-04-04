@@ -1,0 +1,168 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# wardtest against reffs NFSv4.2 — 1 server + N clients
+#
+# Usage:
+#   docker compose -f deploy/docker-compose.yml up --build
+#   docker compose -f deploy/docker-compose.yml down -v
+#
+# The server runs reffsd as a standalone NFSv4.2 server.
+# Each client mounts the server and runs wardtest against the mount.
+#
+# All wardtest directories (data, meta, history) are on the NFS mount
+# so all file I/O goes through the NFS protocol path.
+
+services:
+  # -- reffs NFSv4.2 server --
+  server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.server
+    container_name: wt-server
+    hostname: wt-server
+    privileged: true
+    ports:
+      - "12049:2049"
+    networks:
+      wardnet:
+        aliases:
+          - wt-server
+    volumes:
+      - server-data:/var/lib/reffs
+    healthcheck:
+      test: ["CMD", "rpcinfo", "-t", "localhost", "nfs", "4"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  # -- wardtest builder (compile once, share binary) --
+  builder:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.client
+    container_name: wt-builder
+    volumes:
+      - wardtest-bin:/opt/wardtest
+    command: >
+      sh -c "
+        cd /src &&
+        mkdir -p m4 && autoreconf -fi &&
+        mkdir -p /tmp/build && cd /tmp/build &&
+        /src/configure &&
+        make -j\$(nproc) &&
+        cp src/wardtest /opt/wardtest/wardtest &&
+        echo 'wardtest built successfully'
+      "
+    networks:
+      wardnet:
+
+  # -- wardtest client 1 (writer + verifier) --
+  client1:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.client
+    container_name: wt-client1
+    hostname: wt-client1
+    privileged: true
+    depends_on:
+      server:
+        condition: service_healthy
+      builder:
+        condition: service_completed_successfully
+    volumes:
+      - wardtest-bin:/opt/wardtest:ro
+    networks:
+      wardnet:
+    command: >
+      sh -c "
+        mkdir -p /mnt/nfs &&
+        mount -o vers=4.2,sec=sys,hard,timeo=600 wt-server:/ /mnt/nfs &&
+        mkdir -p /mnt/nfs/wardtest/{data,meta,history} &&
+        /opt/wardtest/wardtest
+          --data /mnt/nfs/wardtest/data
+          --meta /mnt/nfs/wardtest/meta
+          --history /mnt/nfs/wardtest/history
+          --iterations 200
+          --clients 2
+          --report 5;
+        EXIT=\$$?;
+        umount /mnt/nfs 2>/dev/null;
+        exit \$$EXIT
+      "
+
+  # -- wardtest client 2 (writer + verifier, different seed) --
+  client2:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.client
+    container_name: wt-client2
+    hostname: wt-client2
+    privileged: true
+    depends_on:
+      server:
+        condition: service_healthy
+      builder:
+        condition: service_completed_successfully
+    volumes:
+      - wardtest-bin:/opt/wardtest:ro
+    networks:
+      wardnet:
+    command: >
+      sh -c "
+        mkdir -p /mnt/nfs &&
+        mount -o vers=4.2,sec=sys,hard,timeo=600 wt-server:/ /mnt/nfs &&
+        sleep 2 &&
+        /opt/wardtest/wardtest
+          --data /mnt/nfs/wardtest/data
+          --meta /mnt/nfs/wardtest/meta
+          --history /mnt/nfs/wardtest/history
+          --iterations 200
+          --clients 2
+          --seed 0xdeadbeef
+          --report 5;
+        EXIT=\$$?;
+        umount /mnt/nfs 2>/dev/null;
+        exit \$$EXIT
+      "
+
+  # -- wardtest client 3 (verify-only, cross-client verification) --
+  verifier:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.client
+    container_name: wt-verifier
+    hostname: wt-verifier
+    privileged: true
+    depends_on:
+      server:
+        condition: service_healthy
+      builder:
+        condition: service_completed_successfully
+    volumes:
+      - wardtest-bin:/opt/wardtest:ro
+    networks:
+      wardnet:
+    command: >
+      sh -c "
+        mkdir -p /mnt/nfs &&
+        mount -o vers=4.2,sec=sys,hard,timeo=600 wt-server:/ /mnt/nfs &&
+        sleep 5 &&
+        /opt/wardtest/wardtest
+          --data /mnt/nfs/wardtest/data
+          --meta /mnt/nfs/wardtest/meta
+          --history /mnt/nfs/wardtest/history
+          --iterations 100
+          --verify-only
+          --report 5;
+        EXIT=\$$?;
+        umount /mnt/nfs 2>/dev/null;
+        exit \$$EXIT
+      "
+
+networks:
+  wardnet:
+    driver: bridge
+
+volumes:
+  server-data:
+  wardtest-bin:
