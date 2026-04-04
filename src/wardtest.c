@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -102,6 +103,8 @@ static int parse_args(int argc, char **argv, struct wt_config *cfg)
 			break;
 		case 'c':
 			cfg->cfg_clients = atoi(optarg);
+			if (cfg->cfg_clients < 1)
+				cfg->cfg_clients = 1;
 			break;
 		case 's':
 			cfg->cfg_shard_size = (uint32_t)strtoul(optarg,
@@ -225,6 +228,71 @@ static void clients_log(const char *meta_dir, uint64_t mid,
 			strerror(errno));
 }
 
+/* ------------------------------------------------------------------ */
+/* Worker thread                                                       */
+/* ------------------------------------------------------------------ */
+
+static void *worker_thread(void *arg)
+{
+	struct wt_worker *w = arg;
+	const struct wt_config *cfg = w->ww_cfg;
+	uint32_t op_seed = w->ww_seed;
+
+	while (!wt_should_stop(cfg->cfg_meta_dir)) {
+		if (cfg->cfg_iterations > 0 &&
+		    w->ww_iterations >= cfg->cfg_iterations)
+			break;
+
+		/* Advance seed deterministically */
+		op_seed = op_seed * 1103515245 + 12345;
+
+		enum wt_fs_state state = wt_state_check(cfg->cfg_data_dir);
+		enum wt_action action = wt_state_pick_action(
+			state, op_seed, cfg->cfg_verify_only);
+
+		int ret = 0;
+
+		switch (action) {
+		case WT_ACTION_CREATE:
+			ret = wt_action_create(cfg, w->ww_machine_id,
+					       &w->ww_stripe_counter,
+					       op_seed);
+			break;
+		case WT_ACTION_READ:
+		case WT_ACTION_VERIFY:
+			ret = wt_action_verify(cfg, w->ww_machine_id,
+					       op_seed);
+			break;
+		case WT_ACTION_WRITE:
+			/* Modify = delete + create with new seed */
+			wt_action_delete(cfg, w->ww_machine_id, op_seed);
+			op_seed = op_seed * 1103515245 + 12345;
+			ret = wt_action_create(cfg, w->ww_machine_id,
+					       &w->ww_stripe_counter,
+					       op_seed);
+			break;
+		case WT_ACTION_DELETE:
+			ret = wt_action_delete(cfg, w->ww_machine_id,
+					       op_seed);
+			break;
+		}
+
+		if (ret == -EILSEQ) {
+			w->ww_ret = 2;
+			break;
+		}
+
+		w->ww_stats[action]++;
+		w->ww_iterations++;
+	}
+
+	return NULL;
+}
+
+/* ------------------------------------------------------------------ */
+/* Main                                                                */
+/* ------------------------------------------------------------------ */
+
 int main(int argc, char **argv)
 {
 	struct wt_config cfg;
@@ -258,6 +326,7 @@ int main(int argc, char **argv)
 	}
 
 	uint64_t mid = wt_machine_id();
+	int nclients = cfg.cfg_clients;
 
 	printf("wardtest starting\n");
 	printf("  machine_id: 0x%016lx\n", (unsigned long)mid);
@@ -268,7 +337,7 @@ int main(int argc, char **argv)
 	       cfg.cfg_codec == WT_CODEC_XOR ? "xor" : "rs",
 	       cfg.cfg_k, cfg.cfg_m, cfg.cfg_shard_size);
 	printf("  iterations: %lu  clients: %d  verify-only: %s\n",
-	       (unsigned long)cfg.cfg_iterations, cfg.cfg_clients,
+	       (unsigned long)cfg.cfg_iterations, nclients,
 	       cfg.cfg_verify_only ? "yes" : "no");
 	printf("  seed:       0x%08x\n", cfg.cfg_seed);
 
@@ -285,90 +354,157 @@ int main(int argc, char **argv)
 	/* Register with clients file */
 	clients_log(cfg.cfg_meta_dir, mid, "RUNNING", 0);
 
-	/* Action loop (single-threaded for now) */
-	uint32_t stripe_counter = 0;
-	uint32_t op_seed = cfg.cfg_seed;
-	uint64_t iter = 0;
-	uint64_t stats[5] = { 0 }; /* per-action counts */
-	time_t last_report = time(NULL);
+	/*
+	 * Per-iteration limit: when cfg_iterations > 0, divide evenly
+	 * across workers so the total doesn't exceed the requested count.
+	 */
+	uint64_t per_worker_iter = 0;
+	if (cfg.cfg_iterations > 0)
+		per_worker_iter = cfg.cfg_iterations / (uint64_t)nclients;
 
-	printf("wardtest: running...\n");
+	/* Allocate worker contexts */
+	struct wt_worker *workers = calloc((size_t)nclients,
+					   sizeof(struct wt_worker));
+	if (!workers) {
+		fprintf(stderr, "wardtest: out of memory for workers\n");
+		wt_stop_fini();
+		return 1;
+	}
 
-	while (!wt_should_stop(cfg.cfg_meta_dir)) {
-		if (cfg.cfg_iterations > 0 && iter >= cfg.cfg_iterations)
+	/* Initialize workers with deterministic per-thread seeds.
+	 * Each worker gets a unique seed derived from the base seed
+	 * and its index, so their RNG streams don't overlap. */
+	for (int i = 0; i < nclients; i++) {
+		workers[i].ww_cfg = &cfg;
+		workers[i].ww_machine_id = mid;
+		workers[i].ww_id = i;
+		workers[i].ww_seed = cfg.cfg_seed ^ (uint32_t)(i * 2654435761U);
+		workers[i].ww_stripe_counter = (uint32_t)i * 100000;
+		workers[i].ww_iterations = 0;
+		workers[i].ww_ret = 0;
+
+		/* Override per-worker iteration limit */
+		struct wt_config *wcfg = (struct wt_config *)workers[i].ww_cfg;
+		(void)wcfg; /* iterations handled via per_worker_iter */
+	}
+
+	/* If using per-worker iteration limits, set them on a copy */
+	struct wt_config worker_cfg = cfg;
+	if (per_worker_iter > 0)
+		worker_cfg.cfg_iterations = per_worker_iter;
+
+	for (int i = 0; i < nclients; i++)
+		workers[i].ww_cfg = &worker_cfg;
+
+	printf("wardtest: running with %d worker%s...\n",
+	       nclients, nclients > 1 ? "s" : "");
+
+	/* Launch worker threads */
+	for (int i = 0; i < nclients; i++) {
+		int err = pthread_create(&workers[i].ww_thread, NULL,
+					 worker_thread, &workers[i]);
+		if (err) {
+			fprintf(stderr,
+				"wardtest: pthread_create[%d]: %s\n",
+				i, strerror(err));
+			/* Signal existing workers to stop */
+			g_stop = 1;
+			nclients = i;
 			break;
-
-		/* Advance seed deterministically */
-		op_seed = op_seed * 1103515245 + 12345;
-
-		enum wt_fs_state state = wt_state_check(cfg.cfg_data_dir);
-		enum wt_action action = wt_state_pick_action(
-			state, op_seed, cfg.cfg_verify_only);
-
-		int ret = 0;
-
-		switch (action) {
-		case WT_ACTION_CREATE:
-			ret = wt_action_create(&cfg, mid, &stripe_counter,
-					       op_seed);
-			break;
-		case WT_ACTION_READ:
-		case WT_ACTION_VERIFY:
-			ret = wt_action_verify(&cfg, mid, op_seed);
-			break;
-		case WT_ACTION_WRITE:
-			/* Modify = delete + create with new seed */
-			wt_action_delete(&cfg, mid, op_seed);
-			op_seed = op_seed * 1103515245 + 12345;
-			ret = wt_action_create(&cfg, mid, &stripe_counter,
-					       op_seed);
-			break;
-		case WT_ACTION_DELETE:
-			ret = wt_action_delete(&cfg, mid, op_seed);
-			break;
-		}
-
-		if (ret == -EILSEQ)
-			break; /* corruption — stop was already called */
-
-		stats[action]++;
-		iter++;
-
-		/* Periodic stats report */
-		time_t now = time(NULL);
-		if (now - last_report >= cfg.cfg_report_interval) {
-			printf("[%ld] iter=%lu create=%lu read=%lu write=%lu "
-			       "delete=%lu verify=%lu state=%s\n",
-			       (long)now, (unsigned long)iter,
-			       (unsigned long)stats[WT_ACTION_CREATE],
-			       (unsigned long)(stats[WT_ACTION_READ] +
-					       stats[WT_ACTION_VERIFY]),
-			       (unsigned long)stats[WT_ACTION_WRITE],
-			       (unsigned long)stats[WT_ACTION_DELETE],
-			       (unsigned long)stats[WT_ACTION_VERIFY],
-			       state == WT_STATE_EMPTY  ? "EMPTY" :
-			       state == WT_STATE_FULL   ? "FULL" :
-							  "NORMAL");
-			last_report = now;
 		}
 	}
 
-	/* Log completion */
-	clients_log(cfg.cfg_meta_dir, mid, "DONE", iter);
+	/* Main thread: periodic stats reporting */
+	time_t last_report = time(NULL);
 
-	printf("\nwardtest: finished (%lu iterations)\n",
-	       (unsigned long)iter);
+	while (!g_stop) {
+		struct timespec sleep_ts = { .tv_sec = 1, .tv_nsec = 0 };
+		nanosleep(&sleep_ts, NULL);
+
+		time_t now = time(NULL);
+		if (now - last_report >= cfg.cfg_report_interval) {
+			uint64_t total_iter = 0;
+			uint64_t total_stats[5] = { 0 };
+
+			for (int i = 0; i < nclients; i++) {
+				total_iter += workers[i].ww_iterations;
+				for (int j = 0; j < 5; j++)
+					total_stats[j] += workers[i].ww_stats[j];
+			}
+
+			enum wt_fs_state state =
+				wt_state_check(cfg.cfg_data_dir);
+
+			printf("[%ld] iter=%lu create=%lu read=%lu "
+			       "write=%lu delete=%lu verify=%lu "
+			       "state=%s clients=%d\n",
+			       (long)now, (unsigned long)total_iter,
+			       (unsigned long)total_stats[WT_ACTION_CREATE],
+			       (unsigned long)(total_stats[WT_ACTION_READ] +
+					       total_stats[WT_ACTION_VERIFY]),
+			       (unsigned long)total_stats[WT_ACTION_WRITE],
+			       (unsigned long)total_stats[WT_ACTION_DELETE],
+			       (unsigned long)total_stats[WT_ACTION_VERIFY],
+			       state == WT_STATE_EMPTY  ? "EMPTY" :
+			       state == WT_STATE_FULL   ? "FULL" :
+							  "NORMAL",
+			       nclients);
+			last_report = now;
+		}
+
+		/* Check if all workers have finished (iteration limit) */
+		bool all_done = true;
+		for (int i = 0; i < nclients; i++) {
+			if (workers[i].ww_iterations <
+			    worker_cfg.cfg_iterations ||
+			    worker_cfg.cfg_iterations == 0) {
+				all_done = false;
+				break;
+			}
+		}
+		if (all_done && worker_cfg.cfg_iterations > 0)
+			break;
+	}
+
+	/* Join all workers */
+	for (int i = 0; i < nclients; i++) {
+		int err = pthread_join(workers[i].ww_thread, NULL);
+		if (err)
+			fprintf(stderr,
+				"wardtest: pthread_join[%d]: %s\n",
+				i, strerror(err));
+	}
+
+	/* Aggregate final stats */
+	uint64_t total_iter = 0;
+	uint64_t total_stats[5] = { 0 };
+	int exit_code = 0;
+
+	for (int i = 0; i < nclients; i++) {
+		total_iter += workers[i].ww_iterations;
+		for (int j = 0; j < 5; j++)
+			total_stats[j] += workers[i].ww_stats[j];
+		if (workers[i].ww_ret != 0)
+			exit_code = workers[i].ww_ret;
+	}
+
+	/* Log completion */
+	clients_log(cfg.cfg_meta_dir, mid, "DONE", total_iter);
+
+	printf("\nwardtest: finished (%lu iterations, %d workers)\n",
+	       (unsigned long)total_iter, nclients);
 	printf("  create=%lu read=%lu write=%lu delete=%lu verify=%lu\n",
-	       (unsigned long)stats[WT_ACTION_CREATE],
-	       (unsigned long)(stats[WT_ACTION_READ] +
-			       stats[WT_ACTION_VERIFY]),
-	       (unsigned long)stats[WT_ACTION_WRITE],
-	       (unsigned long)stats[WT_ACTION_DELETE],
-	       (unsigned long)stats[WT_ACTION_VERIFY]);
+	       (unsigned long)total_stats[WT_ACTION_CREATE],
+	       (unsigned long)(total_stats[WT_ACTION_READ] +
+			       total_stats[WT_ACTION_VERIFY]),
+	       (unsigned long)total_stats[WT_ACTION_WRITE],
+	       (unsigned long)total_stats[WT_ACTION_DELETE],
+	       (unsigned long)total_stats[WT_ACTION_VERIFY]);
 
 	if (g_stop_reason)
 		printf("  STOPPED: corruption detected\n");
 
+	free(workers);
 	wt_stop_fini();
-	return g_stop_reason ? 2 : 0;
+	return exit_code ? exit_code : (g_stop_reason ? 2 : 0);
 }

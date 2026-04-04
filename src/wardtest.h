@@ -8,6 +8,7 @@
 #ifndef _WARDTEST_H
 #define _WARDTEST_H
 
+#include <pthread.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -100,6 +101,22 @@ struct wt_config {
 	bool     cfg_verify_only;
 	uint32_t cfg_seed;
 	int      cfg_report_interval; /* seconds */
+};
+
+/* ------------------------------------------------------------------ */
+/* Per-thread worker context                                           */
+/* ------------------------------------------------------------------ */
+
+struct wt_worker {
+	pthread_t        ww_thread;
+	const struct wt_config *ww_cfg;
+	uint64_t         ww_machine_id;
+	int              ww_id;           /* worker index (0-based) */
+	uint32_t         ww_seed;         /* per-thread RNG seed */
+	uint32_t         ww_stripe_counter;
+	uint64_t         ww_iterations;
+	uint64_t         ww_stats[5];     /* per-action counts */
+	int              ww_ret;          /* exit status */
 };
 
 /* ------------------------------------------------------------------ */

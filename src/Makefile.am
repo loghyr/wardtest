@@ -17,3 +17,4 @@ wardtest_SOURCES = \
 	actions.c
 
 wardtest_CFLAGS = -I$(srcdir)
+wardtest_LDADD = -lpthread
