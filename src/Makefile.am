@@ -10,6 +10,10 @@ wardtest_SOURCES = \
 	crc32.c \
 	xor.c \
 	stop.c \
-	state.c
+	state.c \
+	chunk.c \
+	meta.c \
+	history.c \
+	actions.c
 
 wardtest_CFLAGS = -I$(srcdir)

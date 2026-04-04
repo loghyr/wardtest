@@ -106,7 +106,9 @@ PROGRAMS = $(bin_PROGRAMS)
 am_wardtest_OBJECTS = wardtest-wardtest.$(OBJEXT) \
 	wardtest-machine.$(OBJEXT) wardtest-rng.$(OBJEXT) \
 	wardtest-crc32.$(OBJEXT) wardtest-xor.$(OBJEXT) \
-	wardtest-stop.$(OBJEXT) wardtest-state.$(OBJEXT)
+	wardtest-stop.$(OBJEXT) wardtest-state.$(OBJEXT) \
+	wardtest-chunk.$(OBJEXT) wardtest-meta.$(OBJEXT) \
+	wardtest-history.$(OBJEXT) wardtest-actions.$(OBJEXT)
 wardtest_OBJECTS = $(am_wardtest_OBJECTS)
 wardtest_LDADD = $(LDADD)
 wardtest_LINK = $(CCLD) $(wardtest_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
@@ -126,10 +128,13 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/wardtest-crc32.Po \
-	./$(DEPDIR)/wardtest-machine.Po ./$(DEPDIR)/wardtest-rng.Po \
-	./$(DEPDIR)/wardtest-state.Po ./$(DEPDIR)/wardtest-stop.Po \
-	./$(DEPDIR)/wardtest-wardtest.Po ./$(DEPDIR)/wardtest-xor.Po
+am__depfiles_remade = ./$(DEPDIR)/wardtest-actions.Po \
+	./$(DEPDIR)/wardtest-chunk.Po ./$(DEPDIR)/wardtest-crc32.Po \
+	./$(DEPDIR)/wardtest-history.Po \
+	./$(DEPDIR)/wardtest-machine.Po ./$(DEPDIR)/wardtest-meta.Po \
+	./$(DEPDIR)/wardtest-rng.Po ./$(DEPDIR)/wardtest-state.Po \
+	./$(DEPDIR)/wardtest-stop.Po ./$(DEPDIR)/wardtest-wardtest.Po \
+	./$(DEPDIR)/wardtest-xor.Po
 am__mv = mv -f
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -271,7 +276,11 @@ wardtest_SOURCES = \
 	crc32.c \
 	xor.c \
 	stop.c \
-	state.c
+	state.c \
+	chunk.c \
+	meta.c \
+	history.c \
+	actions.c
 
 wardtest_CFLAGS = -I$(srcdir)
 all: all-am
@@ -360,8 +369,12 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wardtest-actions.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wardtest-chunk.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wardtest-crc32.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wardtest-history.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wardtest-machine.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wardtest-meta.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wardtest-rng.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wardtest-state.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wardtest-stop.Po@am__quote@ # am--include-marker
@@ -487,6 +500,62 @@ wardtest-state.obj: state.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='state.c' object='wardtest-state.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -c -o wardtest-state.obj `if test -f 'state.c'; then $(CYGPATH_W) 'state.c'; else $(CYGPATH_W) '$(srcdir)/state.c'; fi`
+
+wardtest-chunk.o: chunk.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -MT wardtest-chunk.o -MD -MP -MF $(DEPDIR)/wardtest-chunk.Tpo -c -o wardtest-chunk.o `test -f 'chunk.c' || echo '$(srcdir)/'`chunk.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/wardtest-chunk.Tpo $(DEPDIR)/wardtest-chunk.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='chunk.c' object='wardtest-chunk.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -c -o wardtest-chunk.o `test -f 'chunk.c' || echo '$(srcdir)/'`chunk.c
+
+wardtest-chunk.obj: chunk.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -MT wardtest-chunk.obj -MD -MP -MF $(DEPDIR)/wardtest-chunk.Tpo -c -o wardtest-chunk.obj `if test -f 'chunk.c'; then $(CYGPATH_W) 'chunk.c'; else $(CYGPATH_W) '$(srcdir)/chunk.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/wardtest-chunk.Tpo $(DEPDIR)/wardtest-chunk.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='chunk.c' object='wardtest-chunk.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -c -o wardtest-chunk.obj `if test -f 'chunk.c'; then $(CYGPATH_W) 'chunk.c'; else $(CYGPATH_W) '$(srcdir)/chunk.c'; fi`
+
+wardtest-meta.o: meta.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -MT wardtest-meta.o -MD -MP -MF $(DEPDIR)/wardtest-meta.Tpo -c -o wardtest-meta.o `test -f 'meta.c' || echo '$(srcdir)/'`meta.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/wardtest-meta.Tpo $(DEPDIR)/wardtest-meta.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='meta.c' object='wardtest-meta.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -c -o wardtest-meta.o `test -f 'meta.c' || echo '$(srcdir)/'`meta.c
+
+wardtest-meta.obj: meta.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -MT wardtest-meta.obj -MD -MP -MF $(DEPDIR)/wardtest-meta.Tpo -c -o wardtest-meta.obj `if test -f 'meta.c'; then $(CYGPATH_W) 'meta.c'; else $(CYGPATH_W) '$(srcdir)/meta.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/wardtest-meta.Tpo $(DEPDIR)/wardtest-meta.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='meta.c' object='wardtest-meta.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -c -o wardtest-meta.obj `if test -f 'meta.c'; then $(CYGPATH_W) 'meta.c'; else $(CYGPATH_W) '$(srcdir)/meta.c'; fi`
+
+wardtest-history.o: history.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -MT wardtest-history.o -MD -MP -MF $(DEPDIR)/wardtest-history.Tpo -c -o wardtest-history.o `test -f 'history.c' || echo '$(srcdir)/'`history.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/wardtest-history.Tpo $(DEPDIR)/wardtest-history.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='history.c' object='wardtest-history.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -c -o wardtest-history.o `test -f 'history.c' || echo '$(srcdir)/'`history.c
+
+wardtest-history.obj: history.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -MT wardtest-history.obj -MD -MP -MF $(DEPDIR)/wardtest-history.Tpo -c -o wardtest-history.obj `if test -f 'history.c'; then $(CYGPATH_W) 'history.c'; else $(CYGPATH_W) '$(srcdir)/history.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/wardtest-history.Tpo $(DEPDIR)/wardtest-history.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='history.c' object='wardtest-history.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -c -o wardtest-history.obj `if test -f 'history.c'; then $(CYGPATH_W) 'history.c'; else $(CYGPATH_W) '$(srcdir)/history.c'; fi`
+
+wardtest-actions.o: actions.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -MT wardtest-actions.o -MD -MP -MF $(DEPDIR)/wardtest-actions.Tpo -c -o wardtest-actions.o `test -f 'actions.c' || echo '$(srcdir)/'`actions.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/wardtest-actions.Tpo $(DEPDIR)/wardtest-actions.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='actions.c' object='wardtest-actions.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -c -o wardtest-actions.o `test -f 'actions.c' || echo '$(srcdir)/'`actions.c
+
+wardtest-actions.obj: actions.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -MT wardtest-actions.obj -MD -MP -MF $(DEPDIR)/wardtest-actions.Tpo -c -o wardtest-actions.obj `if test -f 'actions.c'; then $(CYGPATH_W) 'actions.c'; else $(CYGPATH_W) '$(srcdir)/actions.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/wardtest-actions.Tpo $(DEPDIR)/wardtest-actions.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='actions.c' object='wardtest-actions.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(wardtest_CFLAGS) $(CFLAGS) -c -o wardtest-actions.obj `if test -f 'actions.c'; then $(CYGPATH_W) 'actions.c'; else $(CYGPATH_W) '$(srcdir)/actions.c'; fi`
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -615,8 +684,12 @@ clean: clean-am
 clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
 
 distclean: distclean-am
+	-rm -f ./$(DEPDIR)/wardtest-actions.Po
+	-rm -f ./$(DEPDIR)/wardtest-chunk.Po
 	-rm -f ./$(DEPDIR)/wardtest-crc32.Po
+	-rm -f ./$(DEPDIR)/wardtest-history.Po
 	-rm -f ./$(DEPDIR)/wardtest-machine.Po
+	-rm -f ./$(DEPDIR)/wardtest-meta.Po
 	-rm -f ./$(DEPDIR)/wardtest-rng.Po
 	-rm -f ./$(DEPDIR)/wardtest-state.Po
 	-rm -f ./$(DEPDIR)/wardtest-stop.Po
@@ -667,8 +740,12 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
+	-rm -f ./$(DEPDIR)/wardtest-actions.Po
+	-rm -f ./$(DEPDIR)/wardtest-chunk.Po
 	-rm -f ./$(DEPDIR)/wardtest-crc32.Po
+	-rm -f ./$(DEPDIR)/wardtest-history.Po
 	-rm -f ./$(DEPDIR)/wardtest-machine.Po
+	-rm -f ./$(DEPDIR)/wardtest-meta.Po
 	-rm -f ./$(DEPDIR)/wardtest-rng.Po
 	-rm -f ./$(DEPDIR)/wardtest-state.Po
 	-rm -f ./$(DEPDIR)/wardtest-stop.Po

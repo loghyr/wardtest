@@ -20,6 +20,7 @@
 #define WT_CHUNK_MAGIC   0x57415244 /* "WARD" */
 #define WT_CHUNK_VERSION 1
 #define WT_MAX_PATH      4096
+#define WT_PATH_BUF      (WT_MAX_PATH + 256)
 #define WT_MAX_SHARDS    32
 #define WT_DEFAULT_K     4
 #define WT_DEFAULT_M     1
@@ -234,5 +235,18 @@ enum wt_fs_state wt_state_check(const char *path);
 enum wt_action wt_state_pick_action(enum wt_fs_state state,
 				    uint32_t random_val,
 				    bool verify_only);
+
+/* ------------------------------------------------------------------ */
+/* Actions (actions.c)                                                 */
+/* ------------------------------------------------------------------ */
+
+int wt_action_create(const struct wt_config *cfg, uint64_t machine_id,
+		     uint32_t *stripe_counter, uint32_t op_seed);
+
+int wt_action_verify(const struct wt_config *cfg, uint64_t machine_id,
+		     uint32_t op_seed);
+
+int wt_action_delete(const struct wt_config *cfg, uint64_t machine_id,
+		     uint32_t op_seed);
 
 #endif /* _WARDTEST_H */
