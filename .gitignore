@@ -26,6 +26,27 @@ config.status
 *.trs
 *.log
 
+# Credentials and secrets
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+id_rsa
+id_ed25519
+*.secret
+credentials.json
+secrets.yaml
+secrets.yml
+
+# PII and database dumps
+*.sql
+*.dump
+*.csv
+
 # Editor
 *~
 *.swp
