@@ -130,12 +130,17 @@ State transitions based on `statvfs()` free space percentage.
 
 ### Create
 
-1. Generate random source data from seed (Mersenne Twister or XXH)
+1. Generate random source data from seed
 2. EC-encode → k data + m parity shards
 3. CRC32 each shard
-4. Write shard files with chunk headers
-5. Write stripe metadata
-6. Append to history
+4. Write each shard to `.tmp` file, fsync, rename to final name
+   (atomic — a crash mid-create leaves only `.tmp` files)
+5. Write stripe metadata (also atomic: write-temp/fsync/rename)
+   Metadata written AFTER all shards committed — verifier
+   only sees complete stripes.
+6. Append to history (per-client file, O_APPEND for atomicity)
+
+On startup: scan for orphaned `.tmp` files and remove them.
 
 ### Read + Verify
 
@@ -151,8 +156,8 @@ State transitions based on `statvfs()` free space percentage.
 
 1. Pick a random existing stripe
 2. Generate new source data with new seed
-3. Re-encode, write new shards (atomic: write-temp/rename)
-4. Update metadata with new seed
+3. Re-encode, write new shards (atomic: write-temp/fsync/rename)
+4. Update metadata with new seed (atomic)
 5. Append to history
 
 ### Delete
@@ -198,13 +203,81 @@ On stop:
 - All files are preserved (no cleanup)
 - Exit code indicates corruption found
 
-## Multi-Client
+## Multi-Client Coordination
+
+No central coordinator.  Clients discover each other and coordinate
+via sentinel files on the shared filesystem — which is exactly what
+we're testing.
 
 Machine ID: `XXH64(hostname, pid)` — unique per process per host.
 
-Multiple wardtest instances on different clients can operate on the
-same directories simultaneously.  Each writes its own stripes (tagged
-with machine_id).  Any instance can verify any other's stripes.
+### Sentinel files
+
+Two files in the meta directory:
+
+**`.wardtest_stop`** — existence means STOP.  Cheap to check:
+one `access(path, F_OK)` syscall per operation cycle.
+
+```
+CORRUPTION stripe=4567 shard=2
+machine=0xdeadbeef host=client-1 pid=12345
+time=2026-04-03T14:23:45Z
+expected_crc=0xaabbccdd actual_crc=0x11223344
+```
+
+**`.wardtest_clients`** — append-only log of client lifecycle.
+Each line ≤ 256 bytes (atomic via O_APPEND on Linux):
+
+```
+RUNNING  0xdeadbeef client-1 12345 2026-04-03T14:00:00Z
+RUNNING  0xcafebabe client-2 67890 2026-04-03T14:00:05Z
+DONE     0xdeadbeef client-1 12345 2026-04-03T14:30:00Z iterations=10000
+DONE     0xcafebabe client-2 67890 2026-04-03T14:30:02Z iterations=10000
+```
+
+### Start protocol
+
+1. Check `.wardtest_stop` — if exists, refuse to start (crime scene)
+2. Append `RUNNING` to `.wardtest_clients`
+3. Scan for orphaned `.tmp` files, remove them
+4. Begin operations
+
+### Per-operation check
+
+Before every create/write/delete:
+```c
+if (g_stop || access(stop_path, F_OK) == 0) {
+    /* Another client (or thread) detected corruption */
+    g_stop = 1;
+    return;
+}
+```
+
+### Stop protocol (corruption)
+
+1. Set `g_stop = 1` + eventfd wake (stops local threads)
+2. Create `.wardtest_stop` with diagnostic info
+3. Other clients see it on next operation cycle, stop
+4. All files preserved for analysis
+
+### End protocol (clean)
+
+1. Finish iterations
+2. Append `DONE` to `.wardtest_clients`
+3. Exit 0
+
+### Restart after investigation
+
+Operator clears the stop state:
+```bash
+rm /mnt/nfs/meta/.wardtest_stop
+# Optionally: rm -rf all three directories for fresh start
+```
+
+### SIGTERM handling
+
+SIGTERM → graceful stop (finish current operation, append `DONE`).
+Corruption stop → immediate (preserve crime scene).
 
 A **dedicated verifier** mode (`--verify-only`) reads and verifies
 without writing — run on a separate client to detect corruption
