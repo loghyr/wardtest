@@ -78,6 +78,8 @@ workers        = 4
 
 [backend]
 type       = "ram"
+path       = "/tmp/reffs_crash/data"
+state_file = "/tmp/reffs_crash/state"
 
 [[export]]
 path        = "/"

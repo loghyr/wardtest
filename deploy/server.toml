@@ -11,6 +11,8 @@ workers        = 4
 
 [backend]
 type       = "ram"
+path       = "/var/lib/reffs/data"
+state_file = "/var/lib/reffs/mds"
 
 [[export]]
 path        = "/"

@@ -11,7 +11,7 @@ RUN dnf install -y \
     autoconf autoconf-archive automake libtool gcc clang make pkg-config \
     libtirpc-devel liburing-devel userspace-rcu-devel \
     krb5-devel openssl-devel rocksdb-devel xxhash-devel \
-    nfs-utils rpcbind python3 python3-pip git \
+    nfs-utils rpcbind rpcgen python3 python3-pip git \
     HdrHistogram_c-devel libzstd-devel check-devel fuse-devel \
     && dnf clean all
 
