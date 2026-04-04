@@ -191,6 +191,15 @@ for i in "${!CLIENT_PIDS[@]}"; do
     echo "  client $((i+1)): exit ${CODE}"
 done
 
+# -- Verify phase: full read of all surviving stripes --
+echo "--- Verify phase: checking all surviving data ---"
+"${WARDTEST_BIN}" \
+    --data "${MOUNT_DIR}/wardtest/data" \
+    --meta "${MOUNT_DIR}/wardtest/meta" \
+    --history "${MOUNT_DIR}/wardtest/history" \
+    --duration 30 --clients 4 --verify-only --report 10 2>&1
+VERIFY_EXIT=$?
+
 # -- Check for corruption --
 echo ""
 if [[ -f "${MOUNT_DIR}/wardtest/meta/.wardtest_stop" ]]; then
@@ -199,12 +208,17 @@ if [[ -f "${MOUNT_DIR}/wardtest/meta/.wardtest_stop" ]]; then
     exit 2
 fi
 
+if [[ ${VERIFY_EXIT} -ne 0 ]]; then
+    echo "=== FAIL: verify phase failed (exit ${VERIFY_EXIT}) ==="
+    exit 2
+fi
+
 echo "  Server killed ${KILLS} times during test"
+echo "  Verify phase: PASS"
 echo ""
 
 if [[ ${FAIL} -ne 0 ]]; then
-    echo "=== FAIL: client error (may be expected during crash recovery) ==="
-    exit 1
+    echo "=== WARN: writer errors during crash recovery (expected) ==="
 fi
 
 echo "=== PASS: ${KILLS} forced crashes, zero corruption ==="
