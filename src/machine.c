@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * Machine ID — unique per process per host.
+ * Machine ID -- unique per process per host.
  * Uses a simple hash of hostname + pid.
  */
 
@@ -16,7 +16,7 @@
 #include "wardtest.h"
 
 /*
- * FNV-1a 64-bit hash — public domain, no dependencies.
+ * FNV-1a 64-bit hash -- public domain, no dependencies.
  */
 static uint64_t fnv1a_64(const void *data, size_t len)
 {

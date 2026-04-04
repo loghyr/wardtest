@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * Filesystem state machine — adapts operation weights based on
+ * Filesystem state machine -- adapts operation weights based on
  * how full the filesystem is.
  */
 

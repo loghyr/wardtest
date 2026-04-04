@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * Control file — shared encoding parameters across all clients.
+ * Control file -- shared encoding parameters across all clients.
  *
  * The first writer creates .wardtest_control with the encoding
  * configuration.  Subsequent writers validate their parameters match.
@@ -29,7 +29,7 @@ int wt_control_sync(const char *meta_dir, struct wt_config *cfg)
 		     meta_dir, WT_CONTROL_FILE) >= (int)sizeof(path))
 		return -ENAMETOOLONG;
 
-	/* Try to create — if we win the race, write our config */
+	/* Try to create -- if we win the race, write our config */
 	int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0644);
 	if (fd >= 0) {
 		memset(&ctl, 0, sizeof(ctl));
@@ -81,7 +81,7 @@ int wt_control_sync(const char *meta_dir, struct wt_config *cfg)
 	if (errno != EEXIST)
 		return -errno;
 
-	/* File exists — read and validate */
+	/* File exists -- read and validate */
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
 		return -errno;

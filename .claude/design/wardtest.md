@@ -17,7 +17,7 @@ shards, checks CRCs, decodes, and compares against the regenerated
 source.  Any mismatch triggers a global stop.
 
 This exercises the same data integrity path as real pNFS erasure
-coding — CRC per block, EC decode for reconstruction, deterministic
+coding -- CRC per block, EC decode for reconstruction, deterministic
 source generation for verification.
 
 ## Encoding: XOR Parity (fast) + optional RS
@@ -27,9 +27,9 @@ source generation for verification.
 For maximum speed, the default encoder is simple XOR parity:
 - k data shards + 1 parity shard
 - Parity = XOR of all data shards
-- Verification: XOR all k+1 shards → must be zero
+- Verification: XOR all k+1 shards -> must be zero
 - Detects any single-shard corruption
-- O(k × shard_size) — memory bandwidth limited, no GF math
+- O(k × shard_size) -- memory bandwidth limited, no GF math
 
 ```c
 /* Encode: parity = data[0] ^ data[1] ^ ... ^ data[k-1] */
@@ -42,7 +42,7 @@ void xor_encode(const uint8_t **data, uint8_t *parity,
             parity[j] ^= data[i][j];
 }
 
-/* Verify: XOR all shards including parity → should be all zeros */
+/* Verify: XOR all shards including parity -> should be all zeros */
 bool xor_verify(const uint8_t **shards, size_t shard_size, int n)
 {
     uint8_t check[shard_size];
@@ -115,7 +115,7 @@ struct wt_stripe_meta {
 
 ## State Machine
 
-Same concept as elham — adapt operation weights based on filesystem
+Same concept as elham -- adapt operation weights based on filesystem
 fullness:
 
 | State | Creates | Reads | Writes | Deletes | Verify |
@@ -131,12 +131,12 @@ State transitions based on `statvfs()` free space percentage.
 ### Create
 
 1. Generate random source data from seed
-2. EC-encode → k data + m parity shards
+2. EC-encode -> k data + m parity shards
 3. CRC32 each shard
 4. Write each shard to `.tmp` file, fsync, rename to final name
-   (atomic — a crash mid-create leaves only `.tmp` files)
+   (atomic -- a crash mid-create leaves only `.tmp` files)
 5. Write stripe metadata (also atomic: write-temp/fsync/rename)
-   Metadata written AFTER all shards committed — verifier
+   Metadata written AFTER all shards committed -- verifier
    only sees complete stripes.
 6. Append to history (per-client file, O_APPEND for atomicity)
 
@@ -206,16 +206,16 @@ On stop:
 ## Multi-Client Coordination
 
 No central coordinator.  Clients discover each other and coordinate
-via sentinel files on the shared filesystem — which is exactly what
+via sentinel files on the shared filesystem -- which is exactly what
 we're testing.
 
-Machine ID: `XXH64(hostname, pid)` — unique per process per host.
+Machine ID: `XXH64(hostname, pid)` -- unique per process per host.
 
 ### Sentinel files
 
 Two files in the meta directory:
 
-**`.wardtest_stop`** — existence means STOP.  Cheap to check:
+**`.wardtest_stop`** -- existence means STOP.  Cheap to check:
 one `access(path, F_OK)` syscall per operation cycle.
 
 ```
@@ -225,7 +225,7 @@ time=2026-04-03T14:23:45Z
 expected_crc=0xaabbccdd actual_crc=0x11223344
 ```
 
-**`.wardtest_clients`** — append-only log of client lifecycle.
+**`.wardtest_clients`** -- append-only log of client lifecycle.
 Each line ≤ 256 bytes (atomic via O_APPEND on Linux):
 
 ```
@@ -237,7 +237,7 @@ DONE     0xcafebabe client-2 67890 2026-04-03T14:30:02Z iterations=10000
 
 ### Start protocol
 
-1. Check `.wardtest_stop` — if exists, refuse to start (crime scene)
+1. Check `.wardtest_stop` -- if exists, refuse to start (crime scene)
 2. Append `RUNNING` to `.wardtest_clients`
 3. Scan for orphaned `.tmp` files, remove them
 4. Begin operations
@@ -276,11 +276,11 @@ rm /mnt/nfs/meta/.wardtest_stop
 
 ### SIGTERM handling
 
-SIGTERM → graceful stop (finish current operation, append `DONE`).
-Corruption stop → immediate (preserve crime scene).
+SIGTERM -> graceful stop (finish current operation, append `DONE`).
+Corruption stop -> immediate (preserve crime scene).
 
 A **dedicated verifier** mode (`--verify-only`) reads and verifies
-without writing — run on a separate client to detect corruption
+without writing -- run on a separate client to detect corruption
 from the writers' perspective.
 
 ## Command Line
@@ -316,32 +316,32 @@ Optional:
            Expected CRC: 0xaabbccdd  Actual: 0x11223344
            Machine ID: 0xdeadbeef (writer-host-1)
            Timestamp: 2026-04-03T14:23:45Z
-           ALL WRITERS STOPPED — files preserved for analysis
+           ALL WRITERS STOPPED -- files preserved for analysis
 ```
 
 ## Implementation Steps
 
 ### Step 1: Core infrastructure
 
-- `src/wardtest.c` — main, arg parsing, thread management
-- `src/wardtest.h` — all structs, constants, function declarations
-- `src/machine.c` — machine ID generation
-- `src/rng.c` — deterministic RNG (XXH64-based for speed)
+- `src/wardtest.c` -- main, arg parsing, thread management
+- `src/wardtest.h` -- all structs, constants, function declarations
+- `src/machine.c` -- machine ID generation
+- `src/rng.c` -- deterministic RNG (XXH64-based for speed)
 - Build system (autotools)
 - Unit test for RNG determinism
 
 ### Step 2: XOR encoder + chunk I/O
 
-- `src/xor.c` — XOR encode/verify
-- `src/chunk.c` — chunk header read/write with CRC32
-- Unit tests: encode → write → read → verify round-trip
+- `src/xor.c` -- XOR encode/verify
+- `src/chunk.c` -- chunk header read/write with CRC32
+- Unit tests: encode -> write -> read -> verify round-trip
 
 ### Step 3: Operations + state machine
 
-- `src/actions.c` — create, read+verify, write, delete
-- `src/state.c` — filesystem state tracking, weight adjustment
-- `src/meta.c` — stripe metadata read/write
-- `src/history.c` — action logging
+- `src/actions.c` -- create, read+verify, write, delete
+- `src/state.c` -- filesystem state tracking, weight adjustment
+- `src/meta.c` -- stripe metadata read/write
+- `src/history.c` -- action logging
 - Integration test: run 1000 iterations, verify 0 corruption
 
 ### Step 4: Multi-threading + stop mechanism
@@ -352,8 +352,8 @@ Optional:
 
 ### Step 5: RS encoder (optional)
 
-- `src/rs.c` — GF(2^8) log/antilog RS encode/decode
-- Same API as XOR — drop-in replacement via `--codec rs`
+- `src/rs.c` -- GF(2^8) log/antilog RS encode/decode
+- Same API as XOR -- drop-in replacement via `--codec rs`
 
 ### Step 6: Multi-client support
 
@@ -376,12 +376,12 @@ POSIX filesystem.
 
 | Test | Method |
 |------|--------|
-| RNG determinism | Same seed → same output |
-| XOR encode/verify | Round-trip: encode → verify → pass |
-| XOR corruption detect | Flip bit → verify → fail |
-| Chunk header CRC | Write → read → verify CRC |
-| Chunk header corrupt | Modify byte → CRC mismatch |
-| Create + verify stripe | Full pipeline: generate → encode → write → read → decode → compare |
-| State machine transitions | statvfs mock: empty → normal → full |
-| Stop mechanism | Inject corruption → all threads stop |
+| RNG determinism | Same seed -> same output |
+| XOR encode/verify | Round-trip: encode -> verify -> pass |
+| XOR corruption detect | Flip bit -> verify -> fail |
+| Chunk header CRC | Write -> read -> verify CRC |
+| Chunk header corrupt | Modify byte -> CRC mismatch |
+| Create + verify stripe | Full pipeline: generate -> encode -> write -> read -> decode -> compare |
+| State machine transitions | statvfs mock: empty -> normal -> full |
+| Stop mechanism | Inject corruption -> all threads stop |
 | Multi-thread safety | 4 writers + 1 verifier, 10000 iterations, 0 corruption |

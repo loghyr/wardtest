@@ -2,10 +2,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * XOR parity codec — k data shards + 1 parity shard.
+ * XOR parity codec -- k data shards + 1 parity shard.
  *
  * Encode: parity = data[0] ^ data[1] ^ ... ^ data[k-1]
- * Verify: XOR all k+1 shards → must be all zeros.
+ * Verify: XOR all k+1 shards -> must be all zeros.
  *
  * The fastest possible erasure code.  Detects any single-shard
  * corruption.  Memory bandwidth limited, no GF math.

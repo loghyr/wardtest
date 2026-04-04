@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * wardtest.h — all data structures, constants, and function declarations.
+ * wardtest.h -- all data structures, constants, and function declarations.
  */
 
 #ifndef _WARDTEST_H
@@ -42,7 +42,7 @@ enum wt_codec {
 };
 
 /* ------------------------------------------------------------------ */
-/* Chunk header — written at the start of each shard file              */
+/* Chunk header -- written at the start of each shard file              */
 /* ------------------------------------------------------------------ */
 
 struct wt_chunk_header {
@@ -60,7 +60,7 @@ struct wt_chunk_header {
 };
 
 /* ------------------------------------------------------------------ */
-/* Stripe metadata — one file per stripe in the meta directory         */
+/* Stripe metadata -- one file per stripe in the meta directory         */
 /* ------------------------------------------------------------------ */
 
 #define WT_META_MAGIC   0x57544D44 /* "WTMD" */
@@ -109,7 +109,7 @@ struct wt_config {
 };
 
 /* ------------------------------------------------------------------ */
-/* Control file — shared encoding parameters across all clients        */
+/* Control file -- shared encoding parameters across all clients        */
 /* ------------------------------------------------------------------ */
 
 struct wt_control {
@@ -154,7 +154,7 @@ struct wt_worker {
 /* Global state                                                        */
 /* ------------------------------------------------------------------ */
 
-/* Stop flag — set on corruption or SIGTERM.  Checked every operation. */
+/* Stop flag -- set on corruption or SIGTERM.  Checked every operation. */
 extern volatile sig_atomic_t g_stop;
 
 /* Reason for stop: 0 = signal, 1 = corruption */
@@ -167,7 +167,7 @@ extern volatile sig_atomic_t g_stop_reason;
 uint64_t wt_machine_id(void);
 
 /* ------------------------------------------------------------------ */
-/* RNG (rng.c) — deterministic, seed-based                             */
+/* RNG (rng.c) -- deterministic, seed-based                             */
 /* ------------------------------------------------------------------ */
 
 /*
@@ -194,13 +194,13 @@ uint32_t wt_crc32(const void *data, size_t len);
 void wt_xor_encode(uint8_t **shards, int k, size_t shard_size);
 
 /*
- * XOR-verify: XOR all k+1 shards — result should be all zeros.
+ * XOR-verify: XOR all k+1 shards -- result should be all zeros.
  * Returns true if data is consistent, false if corrupted.
  */
 bool wt_xor_verify(const uint8_t **shards, int n, size_t shard_size);
 
 /* ------------------------------------------------------------------ */
-/* RS codec (rs.c) — GF(2^8) Reed-Solomon                             */
+/* RS codec (rs.c) -- GF(2^8) Reed-Solomon                             */
 /* ------------------------------------------------------------------ */
 
 /*

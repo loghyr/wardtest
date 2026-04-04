@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * Stop mechanism — eventfd for local threads, sentinel file for
+ * Stop mechanism -- eventfd for local threads, sentinel file for
  * cross-client coordination.
  */
 
@@ -109,7 +109,7 @@ report:
 		"\n*** CORRUPTION DETECTED ***\n"
 		"stripe=%lu shard=%d\n"
 		"expected_crc=0x%08x actual_crc=0x%08x\n"
-		"ALL WRITERS STOPPED — files preserved for analysis\n\n",
+		"ALL WRITERS STOPPED -- files preserved for analysis\n\n",
 		(unsigned long)stripe_id, shard_idx, expected_crc,
 		actual_crc);
 }
@@ -123,7 +123,7 @@ bool wt_should_stop(const char *meta_dir)
 	char path[WT_PATH_BUF];
 	if (snprintf(path, sizeof(path), "%s/%s",
 		     meta_dir, WT_STOP_FILE) >= (int)sizeof(path))
-		return true; /* path too long — stop to be safe */
+		return true; /* path too long -- stop to be safe */
 
 	if (access(path, F_OK) == 0) {
 		g_stop = 1;

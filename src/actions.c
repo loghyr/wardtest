@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * Actions — create, verify, write (modify), delete stripes.
+ * Actions -- create, verify, write (modify), delete stripes.
  *
  * Each action is a complete pipeline: generate source -> EC encode ->
  * write shards with CRC headers -> write metadata -> log history.
@@ -254,7 +254,7 @@ int wt_action_delete(const struct wt_config *cfg, uint64_t machine_id,
 
 	int n = (int)meta.wsm_k + (int)meta.wsm_m;
 
-	/* Unlink all shard files — best effort, log failures */
+	/* Unlink all shard files -- best effort, log failures */
 	for (int i = 0; i < n; i++) {
 		char path[WT_PATH_BUF];
 		wt_chunk_path(path, sizeof(path), cfg->cfg_data_dir,

@@ -2,9 +2,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * wardtest — filesystem stress test with EC-based corruption detection.
+ * wardtest -- filesystem stress test with EC-based corruption detection.
  *
- * Named for the "ward" — the part of a lock mechanism that prevents
+ * Named for the "ward" -- the part of a lock mechanism that prevents
  * the wrong key from turning.  wardtest verifies that data written
  * through NFS comes back unchanged.
  */
@@ -161,7 +161,7 @@ static int parse_args(int argc, char **argv, struct wt_config *cfg)
 
 /*
  * Register or log completion in the clients file.
- * Best-effort — failures logged to stderr but don't stop the test.
+ * Best-effort -- failures logged to stderr but don't stop the test.
  */
 static void clients_log(const char *meta_dir, uint64_t mid,
 			const char *status, uint64_t iter)
@@ -344,7 +344,7 @@ int main(int argc, char **argv)
 	/* Check for previous corruption stop */
 	if (wt_should_stop(cfg.cfg_meta_dir)) {
 		fprintf(stderr,
-			"Error: %s/%s exists — previous corruption detected.\n"
+			"Error: %s/%s exists -- previous corruption detected.\n"
 			"Investigate and remove the file to restart.\n",
 			cfg.cfg_meta_dir, WT_STOP_FILE);
 		wt_stop_fini();

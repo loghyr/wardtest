@@ -22,7 +22,7 @@ Markdown uses `<!-- -->`.
 
 ## Build
 
-Build in a subdirectory — never in the source tree:
+Build in a subdirectory -- never in the source tree:
 ```bash
 mkdir -p m4 && autoreconf -fi
 mkdir build && cd build
@@ -36,13 +36,13 @@ make -j$(nproc)
 - Never silently swallow errors
 - LOG for actionable errors, TRACE/printf for diagnostics
 - **Every system call return value must be checked.**  wardtest detects
-  filesystem corruption — an unchecked system call can introduce
+  filesystem corruption -- an unchecked system call can introduce
   corruption programmatically, defeating the purpose of the tool.
   This applies to: `write()`, `close()`, `fsync()`, `rename()`,
   `unlink()`, `clock_gettime()`, `gethostname()`, `snprintf()`
   (check for truncation), and any other libc/POSIX call that can fail.
 - In best-effort code paths (history logging, client registration),
-  check the return and log/skip on failure — do not `(void)` cast.
+  check the return and log/skip on failure -- do not `(void)` cast.
 
 ## Unused Parameters
 

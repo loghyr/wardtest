@@ -2,12 +2,12 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * History logger — per-client append-only log.
+ * History logger -- per-client append-only log.
  *
  * Uses O_APPEND for atomic writes (guaranteed atomic for writes
  * <= PIPE_BUF on Linux).  Each record is a single line < 256 bytes.
  *
- * History logging is best-effort — failures are reported to stderr
+ * History logging is best-effort -- failures are reported to stderr
  * but do not stop the test.
  */
 

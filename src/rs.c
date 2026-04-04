@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * Reed-Solomon GF(2^8) codec — k data + m parity shards.
+ * Reed-Solomon GF(2^8) codec -- k data + m parity shards.
  *
  * Clean-room implementation using only pre-2000 textbook sources:
  *   - Reed & Solomon 1960 (original paper)
@@ -14,7 +14,7 @@
  * No SIMD.  No Plank/Jerasure/GF-Complete references.
  *
  * Vandermonde matrix construction for systematic encoding.
- * Encoding is O(k * m * shard_size) — acceptable for a test tool.
+ * Encoding is O(k * m * shard_size) -- acceptable for a test tool.
  */
 
 #include <stdint.h>
@@ -50,7 +50,7 @@ static void gf_init(void)
 	}
 
 	/* gf_log[0] is undefined (log of 0 has no meaning).
-	 * Set to 0 as a sentinel — callers must check for zero. */
+	 * Set to 0 as a sentinel -- callers must check for zero. */
 	gf_log[0] = 0;
 
 	/* Extend exp table for easy modular lookup */
@@ -76,7 +76,7 @@ static inline uint8_t gf_mul(uint8_t a, uint8_t b)
  * Row i, column j = alpha^(i * j) where alpha = gf_exp[1] = 2.
  *
  * This is the lower portion of a Vandermonde matrix.  The upper k x k
- * identity matrix is implicit (systematic code — data shards are
+ * identity matrix is implicit (systematic code -- data shards are
  * passed through unchanged).
  *
  * Matrix is stored row-major: matrix[i * k + j].

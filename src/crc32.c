@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * CRC32 — ISO 3309 / ITU-T V.42 polynomial.
+ * CRC32 -- ISO 3309 / ITU-T V.42 polynomial.
  * Table-driven, no dependencies.
  */
 

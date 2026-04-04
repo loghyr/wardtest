@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * Stripe metadata I/O — one file per stripe in the meta directory.
+ * Stripe metadata I/O -- one file per stripe in the meta directory.
  * Atomic writes (write-temp/fsync/rename).
  */
 

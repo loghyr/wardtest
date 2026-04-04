@@ -1,0 +1,32 @@
+# Build artifacts
+build/
+*.o
+*.a
+*.la
+*.lo
+
+# Autotools generated
+Makefile.in
+aclocal.m4
+autom4te.cache/
+compile
+config.h.in
+config.h.in~
+configure
+configure~
+depcomp
+install-sh
+missing
+test-driver
+ar-lib
+stamp-h*
+config.h
+config.log
+config.status
+*.trs
+*.log
+
+# Editor
+*~
+*.swp
+.vscode/

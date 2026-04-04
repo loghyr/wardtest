@@ -5,7 +5,7 @@
  * Deterministic RNG for wardtest.
  *
  * Given the same seed, always produces the same output.  Used to
- * generate source data for stripes — the verifier regenerates the
+ * generate source data for stripes -- the verifier regenerates the
  * expected data from the seed stored in the metadata.
  *
  * Uses a simple xoshiro128** generator seeded from the input seed.

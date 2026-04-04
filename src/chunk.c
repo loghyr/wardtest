@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * Chunk I/O — read and write shard files with CRC-protected headers.
+ * Chunk I/O -- read and write shard files with CRC-protected headers.
  *
  * All writes are atomic: write to .tmp, fsync, rename to final name.
  * A crash mid-write leaves only a .tmp file which is cleaned up on
@@ -150,7 +150,7 @@ int wt_chunk_read(const char *dir, uint64_t stripe_id, int shard_idx,
 	/* Verify CRC */
 	uint32_t actual_crc = wt_crc32(data, data_len);
 	if (actual_crc != hdr.wch_crc32) {
-		/* CRC mismatch — return the data anyway for diagnostics */
+		/* CRC mismatch -- return the data anyway for diagnostics */
 		*hdr_out = hdr;
 		*data_out = data;
 		*data_len_out = data_len;

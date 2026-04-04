@@ -2,7 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * Codec dispatch — route encode/verify to XOR or RS based on config.
+ * Codec dispatch -- route encode/verify to XOR or RS based on config.
  */
 
 #include <stdint.h>
