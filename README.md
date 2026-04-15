@@ -24,7 +24,7 @@ written through NFS comes back unchanged.
 
 ```bash
 mkdir -p m4 && autoreconf -fi
-mkdir build && cd build
+mkdir -p build && cd build
 ../configure
 make -j$(nproc)
 
