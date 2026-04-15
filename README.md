@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0-only -->
 
 # wardtest — filesystem and NFS stress test with corruption detection
 
@@ -39,4 +39,4 @@ mount -o vers=4.2,noac server:/export /mnt/nfs
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE) for the full text.
+BSD-2-Clause OR GPL-2.0-only. See [LICENSE](LICENSE) for the full text.

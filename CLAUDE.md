@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0-only -->
 
 # wardtest — Claude Code Project Instructions
 
@@ -15,7 +15,7 @@
 
 ## License
 
-- All code: Apache-2.0
+- All code: BSD-2-Clause OR GPL-2.0-only
 - SPDX headers required on all files
 - Co-Authored-By lines are permitted in this repo
 

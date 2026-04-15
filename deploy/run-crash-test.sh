@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0-only
 #
 # wardtest crash test -- periodically SIGKILL the reffs server while
 # 4 clients hammer it over NFSv4.2.  Clients use hard mounts so they

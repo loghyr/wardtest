@@ -1,4 +1,4 @@
-dnl SPDX-License-Identifier: Apache-2.0
+dnl SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0-only
 AC_INIT([wardtest], [0.1.0], [loghyr@gmail.com])
 AC_CONFIG_AUX_DIR([.])
 AM_INIT_AUTOMAKE([foreign subdir-objects -Wall -Werror])

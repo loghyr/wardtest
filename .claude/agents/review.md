@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0-only -->
 
 ---
 name: review
@@ -34,11 +34,11 @@ right-aligned pointers, function opening brace on new line).
 Every source file must have SPDX headers:
 ```c
 /* SPDX-FileCopyrightText: YEAR Tom Haynes <loghyr@gmail.com> */
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0-only */
 ```
 
-wardtest is Apache-2.0.  Compatible licenses: MIT, BSD-2-Clause,
-BSD-3-Clause, ISC, Apache-2.0.  Flag any incompatible dependency.
+wardtest is BSD-2-Clause OR GPL-2.0-only.  Compatible licenses: MIT, BSD-2-Clause,
+BSD-3-Clause, ISC, BSD-2-Clause OR GPL-2.0-only.  Flag any incompatible dependency.
 
 ## 3. Build check
 

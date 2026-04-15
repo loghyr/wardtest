@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0-only -->
 
 # wardtest Coding Standards
 
@@ -14,7 +14,7 @@
 Every source file must begin with:
 ```c
 /* SPDX-FileCopyrightText: 2026 Tom Haynes <loghyr@gmail.com> */
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0-only */
 ```
 
 Shell/Makefile/YAML use `#` comment equivalents.
