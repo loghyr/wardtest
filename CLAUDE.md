@@ -5,13 +5,20 @@
 ## Architecture
 
 - `src/wardtest.c` — main entry point, argument parsing, iteration loop
-- `src/actions.c` — file operations (create, read, write, delete, unlink)
+- `src/actions.c` — stripe operations (create, verify, write/modify, delete)
 - `src/state.c` — filesystem state machine (empty → normal → full)
-- `src/verify.c` — pattern generation and corruption detection
-- `src/meta.c` — metadata record management
-- `src/history.c` — history logging
+- `src/codec.c` — codec dispatch; routes encode/verify to XOR or Reed-Solomon
+- `src/xor.c` — XOR parity codec (k data shards + 1 parity)
+- `src/rs.c` — Reed-Solomon GF(2^8) codec (k data + m parity shards)
+- `src/chunk.c` — shard I/O with CRC-protected headers
+- `src/crc32.c` — CRC32 (ISO 3309 / ITU-T V.42)
+- `src/control.c` — control file; shared encoding parameters across clients
+- `src/meta.c` — per-stripe metadata I/O (one file per stripe)
+- `src/rng.c` — deterministic RNG (seeds stripe data)
+- `src/history.c` — per-client append-only history log
 - `src/machine.c` — machine ID generation for multi-client tracking
-- `src/lock.c` — byte-level locking stress
+- `src/stop.c` — stop mechanism (eventfd for threads, sentinel file across clients)
+- `src/lock.c` — POSIX byte-range lock stress (hotspot RMW under fcntl locks)
 
 ## License
 

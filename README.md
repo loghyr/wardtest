@@ -14,10 +14,10 @@ written through NFS comes back unchanged.
 ## Features
 
 - Weighted state machine adapts operations based on filesystem fullness
-- Pattern-based corruption detection (write deterministic data, verify on read)
+- Erasure-coded corruption detection (XOR or Reed-Solomon shards, per-shard CRCs, verified by reconstruction)
 - Three-directory model (data, meta, history) for cross-volume stress
 - Multi-client support with machine ID tracking
-- Byte-level locking stress for lock manager testing
+- Byte-range locking stress: shared hotspot stripes are read-modify-written in place under POSIX fcntl locks, so a lock-manager bug tears a stripe and is caught by the integrity check
 - Works against any NFS server (Linux knfsd, reffs, NetApp, etc.)
 
 ## Quick Start
