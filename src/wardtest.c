@@ -282,12 +282,19 @@ static void *worker_thread(void *arg)
 			ret = wt_action_delete(cfg, w->ww_machine_id,
 					       op_seed);
 			break;
+		case WT_ACTION_LOCK:
+			ret = wt_action_lock(cfg, w->ww_machine_id, op_seed);
+			break;
 		}
 
 		if (ret == -EILSEQ) {
 			w->ww_ret = 2;
 			break;
 		}
+
+		/* A lock op that returned non-fatal error never did its RMW. */
+		if (action == WT_ACTION_LOCK && ret != 0)
+			w->ww_lock_fail++;
 
 		w->ww_stats[action]++;
 		w->ww_iterations++;
@@ -369,6 +376,13 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	/* Open the shared lock file for byte-range lock stress */
+	if (wt_lock_init(cfg.cfg_meta_dir) < 0) {
+		fprintf(stderr, "wardtest: failed to init lock file\n");
+		wt_stop_fini();
+		return 1;
+	}
+
 	/* Register with clients file */
 	clients_log(cfg.cfg_meta_dir, mid, "RUNNING", 0);
 
@@ -385,6 +399,7 @@ int main(int argc, char **argv)
 					   sizeof(struct wt_worker));
 	if (!workers) {
 		fprintf(stderr, "wardtest: out of memory for workers\n");
+		wt_lock_fini();
 		wt_stop_fini();
 		return 1;
 	}
@@ -444,11 +459,11 @@ int main(int argc, char **argv)
 		time_t now = time(NULL);
 		if (now - last_report >= cfg.cfg_report_interval) {
 			uint64_t total_iter = 0;
-			uint64_t total_stats[5] = { 0 };
+			uint64_t total_stats[WT_ACTION_COUNT] = { 0 };
 
 			for (int i = 0; i < nclients; i++) {
 				total_iter += workers[i].ww_iterations;
-				for (int j = 0; j < 5; j++)
+				for (int j = 0; j < WT_ACTION_COUNT; j++)
 					total_stats[j] += workers[i].ww_stats[j];
 			}
 
@@ -456,7 +471,7 @@ int main(int argc, char **argv)
 				wt_state_check(cfg.cfg_data_dir);
 
 			printf("[%ld] iter=%lu create=%lu read=%lu "
-			       "write=%lu delete=%lu verify=%lu "
+			       "write=%lu delete=%lu verify=%lu lock=%lu "
 			       "state=%s clients=%d\n",
 			       (long)now, (unsigned long)total_iter,
 			       (unsigned long)total_stats[WT_ACTION_CREATE],
@@ -465,6 +480,7 @@ int main(int argc, char **argv)
 			       (unsigned long)total_stats[WT_ACTION_WRITE],
 			       (unsigned long)total_stats[WT_ACTION_DELETE],
 			       (unsigned long)total_stats[WT_ACTION_VERIFY],
+			       (unsigned long)total_stats[WT_ACTION_LOCK],
 			       state == WT_STATE_EMPTY  ? "EMPTY" :
 			       state == WT_STATE_FULL   ? "FULL" :
 							  "NORMAL",
@@ -499,13 +515,15 @@ int main(int argc, char **argv)
 
 	/* Aggregate final stats */
 	uint64_t total_iter = 0;
-	uint64_t total_stats[5] = { 0 };
+	uint64_t total_stats[WT_ACTION_COUNT] = { 0 };
+	uint64_t total_lock_fail = 0;
 	int exit_code = 0;
 
 	for (int i = 0; i < nclients; i++) {
 		total_iter += workers[i].ww_iterations;
-		for (int j = 0; j < 5; j++)
+		for (int j = 0; j < WT_ACTION_COUNT; j++)
 			total_stats[j] += workers[i].ww_stats[j];
+		total_lock_fail += workers[i].ww_lock_fail;
 		if (workers[i].ww_ret != 0)
 			exit_code = workers[i].ww_ret;
 	}
@@ -515,18 +533,38 @@ int main(int argc, char **argv)
 
 	printf("\nwardtest: finished (%lu iterations, %d workers)\n",
 	       (unsigned long)total_iter, nclients);
-	printf("  create=%lu read=%lu write=%lu delete=%lu verify=%lu\n",
+	printf("  create=%lu read=%lu write=%lu delete=%lu verify=%lu "
+	       "lock=%lu\n",
 	       (unsigned long)total_stats[WT_ACTION_CREATE],
 	       (unsigned long)(total_stats[WT_ACTION_READ] +
 			       total_stats[WT_ACTION_VERIFY]),
 	       (unsigned long)total_stats[WT_ACTION_WRITE],
 	       (unsigned long)total_stats[WT_ACTION_DELETE],
-	       (unsigned long)total_stats[WT_ACTION_VERIFY]);
+	       (unsigned long)total_stats[WT_ACTION_VERIFY],
+	       (unsigned long)total_stats[WT_ACTION_LOCK]);
+
+	if (total_lock_fail > 0)
+		printf("  lock failures: %lu\n", (unsigned long)total_lock_fail);
+
+	/*
+	 * If every lock op failed, the lock-manager stress never actually ran
+	 * (e.g. the mount does not support fcntl locks) -- surface that rather
+	 * than reporting a clean pass.
+	 */
+	if (total_stats[WT_ACTION_LOCK] > 0 &&
+	    total_lock_fail >= total_stats[WT_ACTION_LOCK]) {
+		fprintf(stderr,
+			"wardtest: all %lu lock op(s) failed -- lock stress "
+			"did not run\n", (unsigned long)total_lock_fail);
+		if (exit_code == 0)
+			exit_code = 3;
+	}
 
 	if (g_stop_reason)
 		printf("  STOPPED: corruption detected\n");
 
 	free(workers);
+	wt_lock_fini();
 	wt_stop_fini();
 	return exit_code ? exit_code : (g_stop_reason ? 2 : 0);
 }

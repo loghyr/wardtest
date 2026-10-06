@@ -19,7 +19,8 @@ COMMON_SOURCES = \
 	chunk.c \
 	meta.c \
 	history.c \
-	actions.c
+	actions.c \
+	lock.c
 
 libwardtest_a_SOURCES = $(COMMON_SOURCES)
 libwardtest_a_CFLAGS = -I$(srcdir)

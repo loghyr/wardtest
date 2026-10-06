@@ -13,6 +13,7 @@ test_wardtest_SOURCES = \
 	test_control.c \
 	test_codec.c \
 	test_actions.c \
+	test_lock.c \
 	test_main.c
 
 test_wardtest_CFLAGS = \

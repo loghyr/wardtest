@@ -48,8 +48,8 @@ static uint64_t next_stripe_id(uint64_t machine_id, uint32_t *counter)
 /* Create                                                              */
 /* ------------------------------------------------------------------ */
 
-int wt_action_create(const struct wt_config *cfg, uint64_t machine_id,
-		     uint32_t *stripe_counter, uint32_t op_seed)
+int wt_stripe_write(const struct wt_config *cfg, uint64_t machine_id,
+		    uint64_t stripe_id, uint32_t seed)
 {
 	int k = cfg->cfg_k;
 	int m = cfg->cfg_m;
@@ -58,13 +58,11 @@ int wt_action_create(const struct wt_config *cfg, uint64_t machine_id,
 	size_t source_size = shard_size * (size_t)k;
 	int ret = 0;
 
-	uint64_t stripe_id = next_stripe_id(machine_id, stripe_counter);
-
 	/* Generate deterministic source data from seed */
 	uint8_t *source = malloc(source_size);
 	if (!source)
 		return -ENOMEM;
-	wt_rng_fill(op_seed, source, source_size);
+	wt_rng_fill(seed, source, source_size);
 
 	/* Split source into k data shards + allocate m parity shards */
 	uint8_t **shards = calloc((size_t)n, sizeof(uint8_t *));
@@ -98,7 +96,7 @@ int wt_action_create(const struct wt_config *cfg, uint64_t machine_id,
 			.wch_shard_index = (uint32_t)i,
 			.wch_k = (uint32_t)k,
 			.wch_m = (uint32_t)m,
-			.wch_seed = op_seed,
+			.wch_seed = seed,
 			.wch_machine_id = machine_id,
 			.wch_timestamp = now_ns(),
 		};
@@ -114,7 +112,7 @@ int wt_action_create(const struct wt_config *cfg, uint64_t machine_id,
 		.wsm_magic = WT_META_MAGIC,
 		.wsm_version = WT_META_VERSION,
 		.wsm_stripe_id = stripe_id,
-		.wsm_seed = op_seed,
+		.wsm_seed = seed,
 		.wsm_k = (uint32_t)k,
 		.wsm_m = (uint32_t)m,
 		.wsm_shard_size = (uint32_t)shard_size,
@@ -134,6 +132,15 @@ out:
 	free(shards);
 	free(source);
 
+	return ret;
+}
+
+int wt_action_create(const struct wt_config *cfg, uint64_t machine_id,
+		     uint32_t *stripe_counter, uint32_t op_seed)
+{
+	uint64_t stripe_id = next_stripe_id(machine_id, stripe_counter);
+	int ret = wt_stripe_write(cfg, machine_id, stripe_id, op_seed);
+
 	if (ret == 0)
 		wt_history_append(cfg->cfg_hist_dir, machine_id,
 				  WT_ACTION_CREATE, stripe_id, op_seed, true);
@@ -145,13 +152,9 @@ out:
 /* Verify (read + check)                                               */
 /* ------------------------------------------------------------------ */
 
-int wt_action_verify(const struct wt_config *cfg, uint64_t machine_id,
-		     uint32_t op_seed)
+int wt_stripe_verify(const struct wt_config *cfg, uint64_t machine_id,
+		     uint64_t stripe_id, uint32_t *seed_out)
 {
-	uint64_t stripe_id = wt_meta_pick_random(cfg->cfg_meta_dir, op_seed);
-	if (stripe_id == 0)
-		return 0; /* nothing to verify */
-
 	struct wt_stripe_meta meta;
 	int ret = wt_meta_read(cfg->cfg_meta_dir, stripe_id, &meta);
 	if (ret)
@@ -226,13 +229,28 @@ int wt_action_verify(const struct wt_config *cfg, uint64_t machine_id,
 	}
 	free(expected);
 
-	wt_history_append(cfg->cfg_hist_dir, machine_id,
-			  WT_ACTION_VERIFY, stripe_id, meta.wsm_seed, true);
+	if (seed_out)
+		*seed_out = meta.wsm_seed;
 
 out:
 	for (int i = 0; i < n; i++)
 		free(shards[i]);
 	free(shards);
+	return ret;
+}
+
+int wt_action_verify(const struct wt_config *cfg, uint64_t machine_id,
+		     uint32_t op_seed)
+{
+	uint64_t stripe_id = wt_meta_pick_random(cfg->cfg_meta_dir, op_seed);
+	if (stripe_id == 0)
+		return 0; /* nothing to verify */
+
+	uint32_t seed = 0;
+	int ret = wt_stripe_verify(cfg, machine_id, stripe_id, &seed);
+	if (ret == 0)
+		wt_history_append(cfg->cfg_hist_dir, machine_id,
+				  WT_ACTION_VERIFY, stripe_id, seed, true);
 	return ret;
 }
 

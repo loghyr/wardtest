@@ -21,8 +21,10 @@
 #include "wardtest.h"
 
 static const char *action_names[] = {
-	"CREATE", "READ", "WRITE", "DELETE", "VERIFY",
+	"CREATE", "READ", "WRITE", "DELETE", "VERIFY", "LOCK",
 };
+_Static_assert(sizeof(action_names) / sizeof(action_names[0]) ==
+	       WT_ACTION_COUNT, "action_names out of sync with enum wt_action");
 
 void wt_history_append(const char *dir, uint64_t machine_id,
 		       enum wt_action action, uint64_t stripe_id,

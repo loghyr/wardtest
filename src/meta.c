@@ -158,6 +158,15 @@ uint64_t wt_meta_pick_random(const char *dir, uint32_t seed)
 			   (unsigned long *)&id) != 1)
 			continue;
 
+		/*
+		 * Skip lock hotspots: they are only ever accessed in place
+		 * under the byte-range lock, so verify/delete must not pick
+		 * them -- an unlocked read could catch a mid-RMW torn state
+		 * and report a false corruption.
+		 */
+		if ((id & WT_LOCK_HOTSPOT_MASK) == WT_LOCK_HOTSPOT_BASE)
+			continue;
+
 		if (count >= capacity) {
 			capacity = capacity ? capacity * 2 : 64;
 			uint64_t *tmp = realloc(ids, capacity * sizeof(*ids));
