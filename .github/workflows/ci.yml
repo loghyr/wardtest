@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: 2026 Tom Haynes <loghyr@gmail.com>
+# SPDX-License-Identifier: BSD-2-Clause OR GPL-2.0-only
+
+name: CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  # GitHub-hosted runner: build and run the libcheck unit suite.
+  # The NFS/lock-manager stress itself needs real mounts and multiple
+  # client processes -- that is not run here.
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          autoconf automake gcc make pkg-config check
+
+    - name: Autoreconf
+      run: |
+        mkdir -p m4
+        autoreconf -fi
+
+    - name: Configure
+      run: |
+        mkdir -p build_ci
+        cd build_ci
+        ../configure
+
+    - name: Build
+      run: make -C build_ci -j"$(nproc)"
+
+    - name: Run unit tests
+      run: make -C build_ci check
+
+    - name: Dump test log on failure
+      if: failure()
+      run: cat build_ci/tests/test_wardtest.log 2>/dev/null || true
