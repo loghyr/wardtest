@@ -19,6 +19,7 @@
 
 volatile sig_atomic_t g_stop;
 volatile sig_atomic_t g_stop_reason; /* 0 = signal, 1 = corruption */
+bool g_skip_fsync;                   /* set from cfg at startup */
 
 static int stop_efd = -1;
 

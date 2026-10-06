@@ -60,7 +60,7 @@ int wt_chunk_write(const char *dir, uint64_t stripe_id, int shard_idx,
 		goto err;
 	}
 
-	if (fsync(fd) < 0) {
+	if (!g_skip_fsync && fsync(fd) < 0) {
 		ret = -errno;
 		goto err;
 	}

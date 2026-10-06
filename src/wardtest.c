@@ -41,6 +41,7 @@ static void usage(const char *prog)
 		"  --m N              Parity shards (default: 1)\n"
 		"  --codec TYPE       xor (default) or rs\n"
 		"  --verify-only      Read and verify only, no writes\n"
+		"  --no-fsync         Skip fsync on writes (faster, not crash-safe)\n"
 		"  --seed N           Base RNG seed (default: time-based)\n"
 		"  --report N         Stats interval in seconds (default: 10)\n"
 		"  --help             Show this help\n",
@@ -59,6 +60,7 @@ static struct option long_opts[] = {
 	{ "m",          required_argument, 0, 'M' },
 	{ "codec",      required_argument, 0, 'C' },
 	{ "verify-only",no_argument,       0, 'V' },
+	{ "no-fsync",   no_argument,       0, 'F' },
 	{ "seed",       required_argument, 0, 'S' },
 	{ "report",     required_argument, 0, 'r' },
 	{ "help",       no_argument,       0, 'h' },
@@ -84,7 +86,7 @@ static int parse_args(int argc, char **argv, struct wt_config *cfg)
 	cfg->cfg_codec = WT_CODEC_XOR;
 	cfg->cfg_report_interval = 10;
 
-	while ((c = getopt_long(argc, argv, "d:m:H:n:D:c:s:k:M:C:VS:r:h",
+	while ((c = getopt_long(argc, argv, "d:m:H:n:D:c:s:k:M:C:VFS:r:h",
 				long_opts, NULL)) != -1) {
 		switch (c) {
 		case 'd':
@@ -129,6 +131,9 @@ static int parse_args(int argc, char **argv, struct wt_config *cfg)
 			break;
 		case 'V':
 			cfg->cfg_verify_only = true;
+			break;
+		case 'F':
+			cfg->cfg_no_fsync = true;
 			break;
 		case 'S':
 			cfg->cfg_seed = (uint32_t)strtoul(optarg, NULL, 0);
@@ -314,6 +319,9 @@ int main(int argc, char **argv)
 	if (parse_args(argc, argv, &cfg) < 0)
 		return 1;
 
+	/* Publish fsync policy before any write path runs. */
+	g_skip_fsync = cfg.cfg_no_fsync;
+
 	/* Signal handling */
 	struct sigaction sa;
 	memset(&sa, 0, sizeof(sa));
@@ -359,6 +367,7 @@ int main(int argc, char **argv)
 		       (unsigned long)cfg.cfg_iterations, nclients,
 		       cfg.cfg_verify_only ? "yes" : "no");
 	printf("  seed:       0x%08x\n", cfg.cfg_seed);
+	printf("  fsync:      %s\n", cfg.cfg_no_fsync ? "off (benchmark)" : "on");
 
 	/* Check for previous corruption stop */
 	if (wt_should_stop(cfg.cfg_meta_dir)) {

@@ -132,6 +132,7 @@ struct wt_config {
 	int      cfg_m;
 	enum wt_codec cfg_codec;
 	bool     cfg_verify_only;
+	bool     cfg_no_fsync;     /* skip fsync on writes (benchmark mode) */
 	uint32_t cfg_seed;
 	int      cfg_report_interval; /* seconds */
 };
@@ -189,6 +190,14 @@ extern volatile sig_atomic_t g_stop;
 
 /* Reason for stop: 0 = signal, 1 = corruption */
 extern volatile sig_atomic_t g_stop_reason;
+
+/*
+ * When true, skip fsync on shard and metadata writes (benchmark mode --
+ * faster, not crash-safe).  Set once at startup from cfg_no_fsync before
+ * workers launch, read-only thereafter.  Control and stop files are always
+ * fsync'd regardless; they are coordination state, not in the I/O path.
+ */
+extern bool g_skip_fsync;
 
 /* ------------------------------------------------------------------ */
 /* Machine ID (machine.c)                                              */

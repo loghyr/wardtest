@@ -50,7 +50,7 @@ int wt_meta_write(const char *dir, const struct wt_stripe_meta *meta)
 		goto err;
 	}
 
-	if (fsync(fd) < 0) {
+	if (!g_skip_fsync && fsync(fd) < 0) {
 		ret = -errno;
 		goto err;
 	}
